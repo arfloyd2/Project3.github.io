@@ -1,7 +1,8 @@
 ---
-title: "Angelice_Project3"
+title: "Angelice_Project3 Education Level: `r params$edlvl` "
 author: "Angelice Floyd"
-
+params:
+  edlvl: 1
 ---
 
 ```{r setup, include=FALSE}
@@ -9,24 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r rndr, eval = FALSE, echo = FALSE}
-#unique Education Levels
 
-EDLVL <- unique(initial_dta$Education1)
-
-# Filenames
-
-output_file <- paste0(EDLVL,".html")
-
-# List for each Education Level 
-
-params = lapply(EDLVL,FUN = function(x){list(level = x)})
-
-#Data Frame
-
-reports <- tibble(output_file,params)
-
-rmarkdown::render("Project3_draft.Rmd",
-              output_file = "Project3",
+lapply(c(1,3,4,5,6),function(x) {rmarkdown::render("Project3_draft.Rmd",
               params = list(Education1 = 1)
               output_format = "github_document", 
               output_options = list(
@@ -36,10 +21,14 @@ rmarkdown::render("Project3_draft.Rmd",
                 number_of_sections = TRUE, 
                 df_print = "paged", 
                 or_something = TRUE,
-                html_preview = FALSE
+                html_preview = FALSE,
+                params = list(edlvl = x),
+                output_file = paste0("Project3",x,".HTML")
                 
                 )
               )
+}
+)
 ```
 
 
@@ -50,8 +39,13 @@ Introduction : Insert Michael's intro here
 library(tidyverse)
 library(caret)
 library(GGally)
-
+library(shiny)
 ```
+
+
+# Reading in the Data 
+
+Below reads in the binary heart disease data, converts the appropriate variables into factor level variables, and splits the data into training and test set data. 
 
 ```{r readin}
 initial_dta <- read_csv('diabetes_binary_health_indicators_BRFSS2015.csv') %>% mutate( Education1 = ifelse(Education %in% c(1,2),1,Education))
@@ -62,5 +56,29 @@ cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education1","HighBP"
           "MentHlth")
   
 initial_dta[cols] <- lapply(initial_dta[cols],factor)
+
+#set see for reproducability 
+
+set.seed(90)
+
+#create a training index that uses 70% of the data for training data
+
+trainindex <- createDataPartition(initial_dta$Diabetes_binary,p = 0.70, list= FALSE)
+
+#Now, split the data into 70% training and 30% testing
+
+initial_dta_train <- initial_dta[trainindex, ]
+initial_dta_test <- initial_dta[-trainindex, ]
+
+#To help make our predictions valid, we are now going to standardize the numeric variables
+
+preprocval <- preProcess(initial_dta_train,method = c("center","scale"))
+
+trainTransformed <- as_tibble(predict(preprocval,initial_dta_train))
+
+
+testTransformed <- as_tibble(predict(preprocval,initial_dta_tes))
+
+
 
 ```
