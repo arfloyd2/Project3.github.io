@@ -1,0 +1,66 @@
+---
+title: "Angelice_Project3"
+author: "Angelice Floyd"
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r rndr, eval = FALSE, echo = FALSE}
+#unique Education Levels
+
+EDLVL <- unique(initial_dta$Education1)
+
+# Filenames
+
+output_file <- paste0(EDLVL,".html")
+
+# List for each Education Level 
+
+params = lapply(EDLVL,FUN = function(x){list(level = x)})
+
+#Data Frame
+
+reports <- tibble(output_file,params)
+
+rmarkdown::render("Project3_draft.Rmd",
+              output_file = "Project3",
+              params = list(Education1 = 1)
+              output_format = "github_document", 
+              output_options = list(
+                name_value_pairs = "value", 
+                toc = TRUE,
+                toc_depth = 4, 
+                number_of_sections = TRUE, 
+                df_print = "paged", 
+                or_something = TRUE,
+                html_preview = FALSE
+                
+                )
+              )
+```
+
+
+Introduction : Insert Michael's intro here 
+
+```{r libraries}
+
+library(tidyverse)
+library(caret)
+library(GGally)
+
+```
+
+```{r readin}
+initial_dta <- read_csv('diabetes_binary_health_indicators_BRFSS2015.csv') %>% mutate( Education1 = ifelse(Education %in% c(1,2),1,Education))
+
+cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education1","HighBP",
+          "Smoker","Fruits","NoDocbcCost","Income","DiffWalk","HighChol","Stroke",
+          "Veggies","GenHlth","Sex","CholCheck","HeartDiseaseorAttack","HvyAlcoholConsump",
+          "MentHlth")
+  
+initial_dta[cols] <- lapply(initial_dta[cols],factor)
+
+```
