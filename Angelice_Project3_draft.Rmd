@@ -1,8 +1,6 @@
 ---
 title: "Angelice_Project3 Education Level: `r params$edlvl` "
 author: "Angelice Floyd"
-params:
-  edlvl: 1
 ---
 
 ```{r setup, include=FALSE}
@@ -11,8 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r rndr, eval = FALSE, echo = FALSE}
 
-lapply(c(1,3,4,5,6),function(x) {rmarkdown::render("Project3_draft.Rmd",
-              params = list(Education1 = 1)
+lapply(c(1,3,4,5,6),function(x) {rmarkdown::render("Angelice_Project3_draft.Rmd",
               output_format = "github_document", 
               output_options = list(
                 name_value_pairs = "value", 
@@ -47,8 +44,9 @@ library(shiny)
 
 Below reads in the binary heart disease data, converts the appropriate variables into factor level variables, and splits the data into training and test set data. 
 
-```{r readin}
-initial_dta <- read_csv('diabetes_binary_health_indicators_BRFSS2015.csv') %>% mutate( Education1 = ifelse(Education %in% c(1,2),1,Education))
+```{r readin, message = FALSE}
+initial_dta <- read_csv('diabetes_binary_health_indicators_BRFSS2015.csv') %>% mutate( Education1 = ifelse(Education %in% c(1,2),1,Education)) %>% filter(Education1 == params$edlvl)
+
 
 cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education1","HighBP",
           "Smoker","Fruits","NoDocbcCost","Income","DiffWalk","HighChol","Stroke",
@@ -57,7 +55,7 @@ cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education1","HighBP"
   
 initial_dta[cols] <- lapply(initial_dta[cols],factor)
 
-#set see for reproducability 
+#set seed for reproducability 
 
 set.seed(90)
 
@@ -77,8 +75,28 @@ preprocval <- preProcess(initial_dta_train,method = c("center","scale"))
 trainTransformed <- as_tibble(predict(preprocval,initial_dta_train))
 
 
-testTransformed <- as_tibble(predict(preprocval,initial_dta_tes))
+testTransformed <- as_tibble(predict(preprocval,initial_dta_test))
+
+```
+
+# Exploratory Data Analysis 
+
+Because this data is in binary form, contingency tables and categorical visuals will be helpful since it will show how the different levels of those with and without diabetes compare to each other over levels of other categorical variables or how values for the numerical variables conpare at different levels for those with or without diabetes. 
+
+## Frequency of Diabetes Patients and Pre-Existing Conditions 
+
+This frequency table will show the number of patients with and without diabetes who have( or do not have) high blood pressure, high cholestroral, have had stroke or have had a heart attack or heart disease.  
+
+```{r healthconcerns}
 
 
+BP <- data.frame(table(initial_dta$Diabetes_binary,initial_dta$HighBP)) %>% rename(Diabetes_binary="Var1", High_BP = "Var2", BP_Freq = "Freq")
+#CHOL <- data.frame(table(initial_dta$Diabetes_binary, initial_dta$HighChol,initial_dta$params$edlvl)) %>% rename(Diabetes_binary="Var1", High_Chol = "Var2", HI_CHOL_Freq = "Freq" )
+#STRKE <- as.data.frame(table(initial_dta$Diabetes_binary, initial_dta$Stroke,initial_dta$params$edlvl)) %>% rename(Diabetes_binary="Var1", Stroke = "Var2", sTROKE_Freq = "Freq" )
+#HATCK <- as.data.frame(table(initial_dta$Diabetes_binary, initial_dta$HeartDiseaseorAttack,initial_dta$params$edlvl)) %>% rename(Diabetes_binary="Var1", Heart_Disease_Attack = "Var2", Heart_Disease_Attack_Freq = "Freq" )
+
+#Diabetes_disease_frequency <- list("BP" = BP,"CHOL" = CHOL,"STRKE" = STRKE,"HATCK" = HATCK)
+
+BP
 
 ```
