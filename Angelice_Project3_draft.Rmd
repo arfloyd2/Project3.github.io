@@ -2,7 +2,7 @@
 title: "Angelice_Project3 Education Level: `r params$edlvl` "
 author: "Angelice Floyd"
 params:
-  edlvl: c(1,3)
+  edlvl: 1
 ---
 
 ```{r setup, include=FALSE}
