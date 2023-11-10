@@ -1,6 +1,8 @@
 ---
 title: "Angelice_Project3 Education Level: `r params$edlvl` "
 author: "Angelice Floyd"
+params:
+  edlvl: c(1,3)
 ---
 
 ```{r setup, include=FALSE}
@@ -9,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r rndr, eval = FALSE, echo = FALSE}
 
-lapply(c(1,3,4,5,6),function(x) {rmarkdown::render("Angelice_Project3_draft.Rmd",
+ pwalk(c(1,3),rmarkdown::render(input = "Angelice_Project3_draft.Rmd",
               output_format = "github_document", 
               output_options = list(
                 name_value_pairs = "value", 
@@ -18,13 +20,12 @@ lapply(c(1,3,4,5,6),function(x) {rmarkdown::render("Angelice_Project3_draft.Rmd"
                 number_of_sections = TRUE, 
                 df_print = "paged", 
                 or_something = TRUE,
+                params = lapply(c(1,3),function(x){list(edlvl = x)}),
                 html_preview = FALSE,
-                params = list(edlvl = x),
-                output_file = paste0("Project3",x,".HTML")
+                output_file = paste0("Project3","Education level:",params$edlvl,".html")
                 
-                )
-              )
-}
+)
+)
 )
 ```
 
@@ -37,6 +38,7 @@ library(tidyverse)
 library(caret)
 library(GGally)
 library(shiny)
+library(rmarkdown)
 ```
 
 
@@ -45,7 +47,10 @@ library(shiny)
 Below reads in the binary heart disease data, converts the appropriate variables into factor level variables, and splits the data into training and test set data. 
 
 ```{r readin, message = FALSE}
-initial_dta <- read_csv('diabetes_binary_health_indicators_BRFSS2015.csv') %>% mutate( Education1 = ifelse(Education %in% c(1,2),1,Education)) %>% filter(Education1 == params$edlvl)
+
+params$edlvl
+
+initial_dta <- read_csv('diabetes_binary_health_indicators_BRFSS2015.csv') %>% mutate( Education_1 = ifelse(Education %in% c(1,2),1,Education)) %>% filter(Education1 == 1 )
 
 
 cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education1","HighBP",
@@ -55,7 +60,7 @@ cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education1","HighBP"
   
 initial_dta[cols] <- lapply(initial_dta[cols],factor)
 
-#set seed for reproducability 
+#set seed for reproduceability 
 
 set.seed(90)
 
@@ -65,17 +70,17 @@ trainindex <- createDataPartition(initial_dta$Diabetes_binary,p = 0.70, list= FA
 
 #Now, split the data into 70% training and 30% testing
 
-initial_dta_train <- initial_dta[trainindex, ]
-initial_dta_test <- initial_dta[-trainindex, ]
+initial_train <- initialdta[trainindex, ]
+initial_test <- initialdta[-trainindex, ]
 
 #To help make our predictions valid, we are now going to standardize the numeric variables
 
-preprocval <- preProcess(initial_dta_train,method = c("center","scale"))
+preprocval <- preProcess(initial_train,method = c("center","scale"))
 
-trainTransformed <- as_tibble(predict(preprocval,initial_dta_train))
+trainTransformed <- as_tibble(predict(preprocval,initial_train))
 
 
-testTransformed <- as_tibble(predict(preprocval,initial_dta_test))
+testTransformed <- as_tibble(predict(preprocval,initial_test))
 
 ```
 
@@ -83,20 +88,167 @@ testTransformed <- as_tibble(predict(preprocval,initial_dta_test))
 
 Because this data is in binary form, contingency tables and categorical visuals will be helpful since it will show how the different levels of those with and without diabetes compare to each other over levels of other categorical variables or how values for the numerical variables conpare at different levels for those with or without diabetes. 
 
-## Frequency of Diabetes Patients and Pre-Existing Conditions 
+## Diabetes Patients and Pre-Existing Conditions 
 
 This frequency table will show the number of patients with and without diabetes who have( or do not have) high blood pressure, high cholestroral, have had stroke or have had a heart attack or heart disease.  
+
+Might be a better way to combine these 
 
 ```{r healthconcerns}
 
 
 BP <- data.frame(table(initial_dta$Diabetes_binary,initial_dta$HighBP)) %>% rename(Diabetes_binary="Var1", High_BP = "Var2", BP_Freq = "Freq")
-#CHOL <- data.frame(table(initial_dta$Diabetes_binary, initial_dta$HighChol,initial_dta$params$edlvl)) %>% rename(Diabetes_binary="Var1", High_Chol = "Var2", HI_CHOL_Freq = "Freq" )
-#STRKE <- as.data.frame(table(initial_dta$Diabetes_binary, initial_dta$Stroke,initial_dta$params$edlvl)) %>% rename(Diabetes_binary="Var1", Stroke = "Var2", sTROKE_Freq = "Freq" )
-#HATCK <- as.data.frame(table(initial_dta$Diabetes_binary, initial_dta$HeartDiseaseorAttack,initial_dta$params$edlvl)) %>% rename(Diabetes_binary="Var1", Heart_Disease_Attack = "Var2", Heart_Disease_Attack_Freq = "Freq" )
 
-#Diabetes_disease_frequency <- list("BP" = BP,"CHOL" = CHOL,"STRKE" = STRKE,"HATCK" = HATCK)
+CHOL <- data.frame(table(initial_dta$Diabetes_binary, initial_dta$HighChol)) %>% rename(Diabetes_binary="Var1", High_Chol = "Var2", HI_CHOL_Freq = "Freq" )
 
-BP
+STRKE <- as.data.frame(table(initial_dta$Diabetes_binary, initial_dta$Stroke)) %>% rename(Diabetes_binary="Var1", Stroke = "Var2", sTROKE_Freq = "Freq" )
+
+
+HATCK <- as.data.frame(table(initial_dta$Diabetes_binary, initial_dta$HeartDiseaseorAttack)) %>% rename(Diabetes_binary="Var1", Heart_Disease_Attack = "Var2", Heart_Disease_Attack_Freq = "Freq" )
+
+Diabetes_disease_frequency <- list("BP" = BP,"CHOL" = CHOL,"STRKE" = STRKE,"HATCK" = HATCK)
+
+Diabetes_disease_frequency
 
 ```
+
+## The Case for Age 
+
+
+One area of interest was to see how the variable age interacts with the binary diabetes. Overall, diabetes is associated with poeple of older ages, however, i found it interesting to see how distributed the ages are amongst the different educational levels. Is the data skewed towards the older ages for all educational categories, or is there a point in which the distribution is more evenly spread out, or even centered around the mean age ? before that happens, it would be which age groups tend to have better fitness and nutrition habits ( such as whether or not the subject has had physical activity in the past 30 days, do they consume fruit one or more times a day, and do they consume 1 or more vegetables per day).These healthy indicators could provide insight on the patterns for age groups of those who have diabetes. 
+
+
+
+### Mean, Median, Max Age for Each Diabetes indicator 
+
+This section will look at some levels of center
+
+```{r diabage}
+diabgroup <- initial_dta %>% summarise(Max_age = max(Age), Mediam_Age = median(Age), Mean_Age = mean(Age), .by = Diabetes_binary)
+
+diabgroup
+```
+
+### Distribution of Age for patients with Diabetes 
+
+
+```{r graphage}
+
+diab_age <- initial_dta %>% filter(Diabetes_binary == 1)
+
+ggplot(diabage) +
+  #geom_histogram(mapping=aes(x=Age), position="identity", bins = 50) +
+  geom_density(mapping=aes(x=Age ), fill = "blue" ,position="identity") + 
+  labs(x = "Count of Age", title = "Distribution of Age for Subjects with Diabetes")
+
+```
+
+### Healthy Habits indicators broken out by First, Second, and Third quartile Age 
+
+This section first creates a variable that breaks the ages into four groups. The first are ages below the first quartile ( group 1) . The second group consists of ages between the first and the third quartile ( group 2). The third group consistes of those above the 3rd quartile ( group 3). Since the Age variabel continains unique values per observation, creating age groups will be useful for the health habit summarizations. The fourth is a check to see if there are any values that do not fall within the aforementioned groups. 
+
+```{r agegroup}
+
+age1 <- quantile(initial_dta$Age, probs = 0.25)
+age2 <- quantile(initial_dta$Age, probs = 0.5 )
+age3 <- quantile(initial_dta$Age, probs = 0.75)
+
+initial_age_group <- initial_dta
+
+initial_age_group$AgeGroup <- ifelse(initial_age_group$Age< age1,1,
+                                     ifelse(initial_age_group$Age >= age1 & initial_age_group$Age < age2,2,
+                                            ifelse(initial_age_group$Age >= age2 & initial_age_group$Age < age3,3,
+                                                   ifelse(initial_age_group$Age >= age3 ,4, 0))))
+
+```
+
+This next chunk  of code produces a series of contingency tables to see the frequency of healthy indicator values for each age group. 
+
+later : observe for maybe better way to display the contingency tables 
+
+```{r healthlist}
+
+PHYS <- data.frame(table(initial_age_group$AgeGroup,initial_age_group$PhysActivity)) %>% rename(Age_Group="Var1", Physical_Acitivty = "Var2", Phys_Freq = "Freq")
+
+FRUIT <- data.frame(table(initial_age_group$AgeGroup,initial_age_group$Fruits)) %>% rename(Age_Group="Var1", Consumes_Fruit = "Var2", Fruit_Consumption_Freq = "Freq")
+
+VEG <- data.frame(table(initial_age_group$AgeGroup,initial_age_group$Veggies)) %>% rename(Age_Group="Var1", Consumes_Veggies = "Var2", Veggie_Consumption_Freq = "Freq")
+
+
+Healthy_Habits_frequency <- list("PHYS" = PHYS,"FRUIT" = FRUIT,"VEGGIES" = VEG)
+
+Healthy_Habits_frequency 
+
+```
+
+
+Finally this chuch of code graphs the frequency of poeple who have diabetes based on the healthy habits indicators, grouped by age groups. This would give us a chance to see which poplation of age group held the largest value, based on their health indicators. Are we seeing a consistent pattern in diabetes cases for those above or below the age raanges, or are the health and age factors playing roles in the cases? This series of bar charts might be able to provide insight. 
+
+Below observed the frequencies for whether or not a person has done physical activity in the past 30 days. 
+
+```{r physage, message = FALSE}
+
+initial_age_group_diab <- initial_age_group %>% filter(Diabetes_binary ==1)
+
+phys_sum <- initial_age_group_diab %>% group_by(PhysActivity,AgeGroup) %>% summarize(sum_Diabetes= n())
+phys_sum$AgeGroup <- as.factor(phys_sum$AgeGroup)
+
+
+g <- ggplot(data = phys_sum,mapping=aes(x=AgeGroup ,y= sum_Diabetes, fill = AgeGroup), position = "dodge") +
+  geom_bar(stat= "identity" ) +
+  facet_wrap(~PhysActivity) + 
+  labs(x = "Age Group", y = "Count of Diabetes Cases", title = "Count of Diabetes for Each Physical Activity Indicator by Age Group")
+g
+
+```
+
+Finally, this next block of code graphs the frequency of poeple who have diabetes based on their fruit and veggie consumption. For simplicity of this report, below will conbine the Fruits and Veggies variables into one factor based variable. First, we will create a new variable that adds the Fruits and Veggies column. The factor levels will be 0, if there is no consumption at all, 1 if there is consumption in either fruits or veggies, and 2 if there is consumption in both. Then, after summarizing the data by the healthy food indicator and age group, we will produce grouped bar charts of diabetes patients for each indicator by age group. 
+
+
+```{r eatage, message = FALSE}
+
+initial_age_group_diab$HealthyEating <- as.numeric(as.character(initial_age_group_diab$Fruits)) + as.numeric(as.character(initial_age_group_diab$Veggies))
+
+eat_sum <- initial_age_group_diab %>% group_by(HealthyEating,AgeGroup) %>% summarize(sum_Diabetes= n())
+eat_sum$AgeGroup <- as.factor(eat_sum$AgeGroup)
+
+g <- ggplot(data = eat_sum,mapping=aes(x=AgeGroup ,y= sum_Diabetes, fill = AgeGroup), position = "dodge") +
+  geom_bar(stat= "identity" ) +
+  facet_wrap(~HealthyEating) + 
+  labs(x = "Age Group", y = "Count of Diabetes Cases", title = "Count of Diabetes for Each Healthy Eating Indicator by Age Group")
+g
+
+```
+
+### Age and Mental Health 
+
+So far we've looked at the intersections of healthy habits, age and diabetes. Finally, it would be interesting to see if mental health, age and diabetes have any intersections. The main point of interest in this portion is to see if there is any possible correlation between age and many days during the past 30 days did the subject say their mental health was not good ( which is the Mental health varaible). To see this, Below looks at a scatter plot of age and mental health broken out by whether or not the subject had diabetes. Is there a stronger correlation for those who have diabetes compared to those who did not? That and other questions that could possibly shed light in the modelling process could be seen in the below set of graphs. 
+
+```{r mentalage}
+
+
+
+ment_age <- initial_dta %>% group_by(Diabetes_binary, Age) %>% summarize(mental_health_sum = sum(as.numeric(MentHlth)))
+
+age_mental_scatter <- ggplot(ment_age, aes(x=Age,y=mental_health_sum)) +
+  geom_point(position= "jitter") + 
+  geom_smooth(method = lm) +
+  labs(x = "Ages", y= "Mental Health Days Not God", title= "Age by Number of Reported Days of Mental Health Not Good") +
+  facet_wrap(~Diabetes_binary)
+  
+
+age_mental_scatter
+
+```
+
+
+# Summarization and Modelling 
+
+## Log Loss 
+
+When working with data ( such as the diabetes data we are using) , that contians a binary response variable with the possible outcome of 0 or 1 ( occurance or no occurance) one of the main goals in machine learning is to fit a model whose predictions are as close to the actual value as possible. In the statistics world, we want the probability that our predictions are equal to the actual value of the response to be as large possible. Log loss is a metric that uses the probability of obtaining our predicted values to determine how well our model fits the data and forecasts the response. To preovide a view of the mechanics behind the model, we start with the notion that our binary response variable is a random variable that follows a Bernoulli distribution. Thus, to start, we calculate the likelihood of the probability of success for a random variable that follows the Bernoulli distribion with the parameter of p being the probability of success. $$L(p│x_1,…x_n )=∏_np^{x_i}*(1-p)^{1-x_i}$$ . After taking the log of the likelihood function, we divide the summation by the number of observations in order to find the average loss for over our sample and multiply by -1 to establish notion that the lowest output value of the log loss is optimal: $$log-loss= -1/n ∑_n x_i log*p+(1-x_i )* log⁡(1-p)$$  . Thus, the lower the log-loss, the better our prediction, and the better our model fits the data. The log loss function is often preferred over the accuracy value because it  associated with how close the predictions were to the actual values, as opposed to just how many correct predictions there were out of the total predictions, which is what accuracy focuses on. When we are only observing the proportion of correct predictions as a measure of how well our model fits the data, we could be missing important information on how well the incorrect predictions fared with the actual values. Were they close? was there a large amount of error ? We wouldn't be able to have that kind of visibility when just looking at accuracy, whereas log-loss could give us an idea of how close our predictions are to the actual values, which is an indication of how much error we could be seeing from the target. 
+
+## Logistic Regression 
+
+
+
