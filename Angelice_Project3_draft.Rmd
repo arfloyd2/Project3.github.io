@@ -39,6 +39,7 @@ library(caret)
 library(GGally)
 library(shiny)
 library(rmarkdown)
+library(MASS)
 ```
 
 
@@ -241,14 +242,89 @@ age_mental_scatter
 
 ```
 
-
 # Summarization and Modelling 
 
 ## Log Loss 
 
-When working with data ( such as the diabetes data we are using) , that contians a binary response variable with the possible outcome of 0 or 1 ( occurance or no occurance) one of the main goals in machine learning is to fit a model whose predictions are as close to the actual value as possible. In the statistics world, we want the probability that our predictions are equal to the actual value of the response to be as large possible. Log loss is a metric that uses the probability of obtaining our predicted values to determine how well our model fits the data and forecasts the response. To preovide a view of the mechanics behind the model, we start with the notion that our binary response variable is a random variable that follows a Bernoulli distribution. Thus, to start, we calculate the likelihood of the probability of success for a random variable that follows the Bernoulli distribion with the parameter of p being the probability of success. $$L(p│x_1,…x_n )=∏_np^{x_i}*(1-p)^{1-x_i}$$ . After taking the log of the likelihood function, we divide the summation by the number of observations in order to find the average loss for over our sample and multiply by -1 to establish notion that the lowest output value of the log loss is optimal: $$log-loss= -1/n ∑_n x_i log*p+(1-x_i )* log⁡(1-p)$$  . Thus, the lower the log-loss, the better our prediction, and the better our model fits the data. The log loss function is often preferred over the accuracy value because it  associated with how close the predictions were to the actual values, as opposed to just how many correct predictions there were out of the total predictions, which is what accuracy focuses on. When we are only observing the proportion of correct predictions as a measure of how well our model fits the data, we could be missing important information on how well the incorrect predictions fared with the actual values. Were they close? was there a large amount of error ? We wouldn't be able to have that kind of visibility when just looking at accuracy, whereas log-loss could give us an idea of how close our predictions are to the actual values, which is an indication of how much error we could be seeing from the target. 
+When working with data ( such as the diabetes data we are using) , that contians a binary response variable with the possible outcome of 0 or 1 ( occurance or no occurance) one of the main goals in machine learning is to fit a model whose predictions are as close to the actual value as possible. In the statistics world, we want the probability that our predictions are equal to the actual value of the response to be as large possible. Log loss is a metric that uses the probability of obtaining our predicted values to determine how well our model fits the data and forecasts the response. To preovide a view of the mechanics behind the model, we start with the notion that our binary response variable is a random variable that follows a Bernoulli distribution. Thus, to start, we calculate the likelihood of the probability of success for a random variable that follows the Bernoulli distribion with the parameter of p being the probability of success. $$L(p│x_1,…x_n )=∏_np^{x_i}(1-p)^{1-x_i}$$ . After taking the log of the likelihood function, we divide the summation by the number of observations in order to find the average loss for over our sample and multiply by -1 to establish notion that the lowest output value of the log loss is optimal: $$log-loss= -1/n ∑_n x_i logp+(1-x_i ) log⁡(1-p)$$  . Thus, the lower the log-loss, the better our prediction, and the better our model fits the data. The log loss function is often preferred over the accuracy value because it  associated with how close the predictions were to the actual values, as opposed to just how many correct predictions there were out of the total predictions, which is what accuracy focuses on. When we are only observing the proportion of correct predictions as a measure of how well our model fits the data, we could be missing important information on how well the incorrect predictions fared with the actual values. Were they close? was there a large amount of error ? We wouldn't be able to have that kind of visibility when just looking at accuracy, whereas log-loss could give us an idea of how close our predictions are to the actual values, which is an indication of how much error we could be seeing from the target. 
 
 ## Logistic Regression 
 
+Logistic regrssion is a modelling technique under the supervised learning umbrella of Machine learning that works with binary data to predict the probability of an event occuring. Similar to linear regression, logistic regression can work to identify the relationship between explanatory variables and the target response variable. However, in the situatio of logistic regression, the response variable is binary and has the value of 0 or 1 as opposed to a regular numeric response that can take on any number- depending on the unit of measurement. To start the breakdown of the model is the following: $$P = e^{B_0 +B_1x}/1+e^{B_0 +B_1*x}$$ where P is the probability of an event occuring and $e^{B_0 +B_1x}$ is obtained by parameter estimation ( mainly from using maximum likelihood), but theoretically, it comes from the log-odds function $Y = ln(P/1-P)$ which calculates the probability of an event happening divided by the probability of the event not happening, where Y can have the components of a lineary regression wihout the erorr term $Y=B_0 +B_1x$ . Thus, if we solve for the probability of an event occuring in terms of the odds that it will occur (Y), then we will get $P=Y/1+Y$ which makes the model the logistic regression. Thus, to sum, we have a categorical variable with the categories of 0 and 1 - event occurs or does not occur- given a set of explanatory variables. Logistic regression can use the explanatory varibles to determine the probability of the response variable occuring. It must be noted that the the linear regrssion portions of the data can be extended to multiple linear regression cases as well. 
+
+### Modelling with Logistic Regression 
+
+Now that we have a good idea oon the foundatoin and theh purpose of logistic regression, let's look at fitting our binary heart disease data to a logistic regression model.
+
+Log- Loss Method Selection Criteria 
+
+Since we have explored the Log-loss criteria for modelling above, this first candidate will use the log-loss criteria to fit a model. Because logistic regression requires all of our variables to binary, we will convert the numeric variables that we have in the data to dummy variables. We will then fit the generalized linear model to the data under the binomial family with the logloss modelling metric. 
 
 
+```{r logloss, warning = FALSE}
+set.seed(10)
+
+newcols <- dummyVars(~BMI + MentHlth + PhysHlth + Age + Education, data = initial_dta_train, stringAsFactors = TRUE, sep = "_") %>% 
+  predict(newdata = initial_dta_train)
+
+logdta <- cbind(initial_dta_train,newcols) %>%
+  select(-BMI, -MentHlth, - PhysHlth, - Age, - Education, -Education1) 
+
+
+levels(logdta$Diabetes_binary) = c("yes","no")
+
+logloss <- train(Diabetes_binary ~ ., data =  logdta,
+                       method = "glm",
+                       family = "binomial",
+                       preProcess = c("center", "scale"), 
+                       trControl = trainControl(method = "cv", number = 10,classProbs = TRUE, summaryFunction =mnLogLoss),
+                      metric = "logLoss"
+                 )
+
+summary(logloss)
+logloss
+```
+
+This next model will use the stepAIC function in the backward direction to find a logistic model, still using the log loss metric. 
+
+```{r logloss2, warning=FALSE}
+
+logloss2 <- train(Diabetes_binary ~ . ,
+  data = logdta ,
+  method = 'glmStepAIC',
+  family = "binomial",
+  direction = "backward",
+  trControl = trainControl(method = "cv", number = 3,classProbs = TRUE, summaryFunction =mnLogLoss),
+  metric = "logLoss", 
+  trace = FALSE
+  )
+
+
+summary(logloss2)
+logloss2
+```
+
+This final model will use the StepAIC fuction in the forward direction where the metric is Accuracy
+
+```{r logloss3, warning=FALSE}
+
+set.seed(10)
+
+lowerfit <- glm(Diabetes_binary ~ 1, data = as.data.frame(logdta), family = binomial)
+
+upperfit <- glm(Diabetes_binary ~ ., data = as.data.frame(logdta), family = binomial)
+
+logloss3 <- stepAIC(lowerfit ,
+  data = logdta ,
+  family = "binomial",
+  direction = "forward",
+  trControl = trainControl(method = "cv", number = 3),
+  scope=list(upper=upperfit,lower=lowerfit),
+  metric = "Accuracy", 
+  trace = FALSE
+  )
+
+
+summary(logloss3)
+logloss3
+```
