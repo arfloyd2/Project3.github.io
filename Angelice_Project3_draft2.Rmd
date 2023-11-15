@@ -2,7 +2,7 @@
 title: "Project3 Education Level: `r params$edlvl` "
 author: "Angelice Floyd and Michael Dolan"
 params:
-  Education_Level: "Elementary or less"
+  Education_Level: "Elementary or less" 
 ---
 
 ```{r setup, include=FALSE}
