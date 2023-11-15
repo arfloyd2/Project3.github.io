@@ -1,0 +1,478 @@
+---
+title: "Project3 Education Level: `r params$edlvl` "
+author: "Angelice Floyd and Michael Dolan"
+params:
+  Education_Level: "Elementary or less"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.path=paste0('Figs/', params$Education_Level, '/'), warning = FALSE, error = FALSE)
+```
+
+```{r render, eval = FALSE, echo = FALSE}
+initial_dta <- read_csv('diabetes_binary_health_indicators_BRFSS2015.csv') %>% 
+          mutate(Education_1 = ifelse(Education %in% c(1,2),1,Education)) %>%
+          mutate(Education_Level = ifelse(Education_1==1, "Elementary or less",
+                                    ifelse(Education_1==3, "Some high school",
+                                    ifelse(Education_1==4, "High school graduate",
+                                    ifelse(Education_1==5, "Some college or technical school",
+                                    ifelse(Education_1==6, "College graduate", "ERROR"))))))
+
+Education_params <- unique(initial_dta$Education_Level)
+output_file <- paste0("Project 3, ", Education_params, ".md")
+params <- lapply(Education_params, FUN = function(x){list(Education_Level=x)})
+reports <- tibble(output_file, params)
+
+apply(reports, MARGIN = 1,
+      FUN = function(x){render(input = "Angelice_Project3_draft.Rmd",
+                               output_file = x[[1]], params = x[[2]],
+                               output_options = list(
+                                name_value_pairs = "value", 
+                                toc = TRUE,
+                                toc_depth = 4, 
+                                number_of_sections = TRUE, 
+                                df_print = "paged",
+                                html_preview = FALSE))})
+```
+
+
+# Introduction 
+
+The purpose of this document is to create multiple reports that will summarizing and create various models for a CDC dataset that contains information on diabetes. Each report will cover a different education level based on a variable in the dataset, and the creation of these reports will be automated so that the same graphs and models will be generated for each education level.  
+
+The information being analyzed is from the Behavioral Risk Factor Surveillance System (BRFSS), a health-related telephone survey that is collected annually by the Centers for Disease Control and Prevention (CDC). This survey has collected responses from over 400,000 Americans each year on various health-related questions since 1984.  
+
+The particular dataset being used for this report contains data from the BRFSS conducted in 2015. The dataset has been cleaned and contains responses from 253,680 survey participants. The dataset contains a total of 22 variables, many of which are binary in nature. Below is a summary of the variables present in the dataset along with their levels:  
+
+- Target Variable  
+    - Diabetes_binary: Diabetes status
+        - 0: no diabetes
+        - 1: prediabetes
+        - 2: diabetes
+- Grouping Variable (Use to generate multiple reports)
+    - Education: Education Level
+        - 1: Never attended school or only kindergarten
+        - 2: Grades 1 through 8 (Elementary)
+        - 3: Grades 9 through 11 (Some high school)
+        - 4: Grade 12 or GED (High school graduate)
+        - 5: College 1 year to 3 years (Some college or technical school)
+        - 6: College 4 years or more (College graduate)
+    - *Note: Level 1 and Level 2 of the Education variable have been combined for report generation to create an "Elementary or Less" variable.*
+- Categorical variables (Other than Education)
+    - GenHlth: Would you say that in general your health is?
+        - 1: Excellent
+        - 2: Very good
+        - 3: Good
+        - 4: Fair
+        - 5: Poor
+    - Sex
+        - 0: Female
+        - 1: Male
+    - Age
+        - 1: Age 18 to 24
+        - 2: Age 25 to 29
+        - 3: Age 30 to 34
+        - 4: Age 35 to 39
+        - 5: Age 40 to 44
+        - 6: Age 45 to 49
+        - 7: Age 50 to 54
+        - 8: Age 55 to 59
+        - 9: Age 60 to 64
+        - 10: Age 65 to 69
+        - 11: Age 70 to 74
+        - 12: Age 75 to 79
+        - 13: Age 80 or older
+    - Income
+        - 1: Less than $10,000
+        - 2: \$10,000 to less than \$15,000
+        - 3: \$15,000 to less than \$20,000
+        - 4: \$20,000 to less than \$25,000
+        - 5: \$25,000 to less than \$35,000
+        - 6: \$35,000 to less than \$50,000
+        - 7: \$50,000 to less than \$75,000
+        - 8: $75,000 or more
+        
+- Binary Variables (Questions with a response of either Yes, indicated by a 1, or No, indicated by a 0)
+    - HighBP: Do you have high blood pressure?
+    - HighChol: Do you have high cholesterol?
+    - CholCheck: Cholesterol check in the past 5 years
+    - Smoker: Have you smoked at least 100 cigarettes in your entire life?
+    - Stroke: (Ever told) you had a stroke?
+    - HeartDiseaseorAttack: coronary heart disease (CHD) or myocardial infarction (MI)
+    - PhysActivity: physical activity in past 30 days - not including job
+    - Fruits: Consume Fruit 1 or more times per day
+    - Veggies: Consume Vegetables 1 or more times per day
+    - HvyAlcoholConsump: adult men >=14 drinks per week and adult women>=7 drinks per week
+    - AnyHealthcare: Have any kind of health care coverage, including health insurance, prepaid plans such as HMO, etc.
+    - NoDocbcCost: Was there a time in the past 12 months when you needed to see a doctor but could not because of cost?
+    - DiffWalk: Do you have serious difficulty walking or climbing stairs?
+- Numerical Variables
+    - BMI: Body Mass Index
+    - MentHlth: Days of poor mental health
+        - Scale: 1-30 days
+    - PhysHlth: Physical illness or injury days in past 30 days
+        - Scale: 1-30 days
+    
+Here are all the packages used throughout this document:
+```{r libraries}
+
+library(tidyverse)
+library(caret)
+library(GGally)
+library(shiny)
+library(rmarkdown)
+library(MASS)
+library(glmnet)
+library(randomForest)
+```
+
+
+# Reading in the Data 
+
+Below reads in the binary heart disease data, converts the appropriate variables into factor level variables, and splits the data into training and test set data. 
+
+```{r readin, message = FALSE}
+
+
+initial_dta <- read_csv('diabetes_binary_health_indicators_BRFSS2015.csv') %>% 
+          mutate(Education_1 = ifelse(Education %in% c(1,2),1,Education)) %>%
+          mutate(Education_Level = ifelse(Education_1==1, "Elementary or less",
+                                    ifelse(Education_1==3, "Some high school",
+                                    ifelse(Education_1==4, "High school graduate",
+                                    ifelse(Education_1==5, "Some college or technical school",
+                                    ifelse(Education_1==6, "College graduate", "ERROR"))))))
+
+#set seed for reproducibility 
+
+set.seed(90)
+
+#create a training index that uses 70% of the data for training data
+
+trainindex <- createDataPartition(initial_dta$Diabetes_binary,p = 0.70, list= FALSE)
+
+#Now, split the data into 70% training and 30% testing
+
+initial_train <- initial_dta[trainindex, ]
+initial_test <- initial_dta[-trainindex, ]
+
+#To help make our predictions valid, we are now going to standardize the numeric variables
+
+preprocval <- preProcess(initial_train,method = c("center","scale"))
+
+trainTransformed <- as_tibble(predict(preprocval,initial_train))
+
+
+testTransformed <- as_tibble(predict(preprocval,initial_test))
+
+```
+
+# Exploratory Data Analysis 
+
+Because this data is in binary form, contingency tables and categorical visuals will be helpful since it will show how the different levels of those with and without diabetes compare to each other over levels of other categorical variables, as well as how values for the numerical variables compare at different levels for those with or without diabetes. 
+
+## Diabetes, Health Measures and Pre-Existing Conditions 
+
+It is often discussed that diet, and weight-related health issues such as obesity, high blood pressure and cholesterol are major contributing factors to complications with and obtaining diabetes. When the levels for these variabble are consistently high, there is often the observation that the chances for having diabetes later in life incerease. Thus, it would be interesting to see how the the levels of these variables in the data interact with patients who have diabetes - and in some cases, compared to the patients who do not have diabetes. 
+
+## Diabetes Patients and Pre-Existing Conditions 
+
+This frequency table will show the number of patients with and without diabetes who have (or do not have) high blood pressure, high cholesterol, have had stroke or have had a heart attack or heart disease.  
+
+
+```{r healthconcerns}
+
+
+BP <- data.frame(table(initial_dta$Diabetes_binary,initial_dta$HighBP)) %>% rename(Diabetes_binary="Var1", High_BP = "Var2", BP_Freq = "Freq")
+
+CHOL <- data.frame(table(initial_dta$Diabetes_binary, initial_dta$HighChol)) %>% rename(Diabetes_binary="Var1", High_Chol = "Var2", HI_CHOL_Freq = "Freq" )
+
+STRKE <- as.data.frame(table(initial_dta$Diabetes_binary, initial_dta$Stroke)) %>% rename(Diabetes_binary="Var1", Stroke = "Var2", sTROKE_Freq = "Freq" )
+
+
+HATCK <- as.data.frame(table(initial_dta$Diabetes_binary, initial_dta$HeartDiseaseorAttack)) %>% rename(Diabetes_binary="Var1", Heart_Disease_Attack = "Var2", Heart_Disease_Attack_Freq = "Freq" )
+
+Diabetes_disease_frequency <- list("BP" = BP,"CHOL" = CHOL,"STRKE" = STRKE,"HATCK" = HATCK)
+
+Diabetes_disease_frequency
+
+```
+
+
+###  BMI  for Patients with Diabetes 
+
+
+In this section, we will explore the distributions and central measures for BMI in patients with Diabetes
+
+First we will observe the mean, median and maximum of BMI for patients with and without diabetes
+
+
+This section will look at some levels of center for BMI. 
+
+```{r diab_bmi}
+initial_dta %>% summarise(Max_BMI = max(BMI), Mediam_BMI = median(BMI), Mean_BMI = mean(BMI), .by = Diabetes_binary)
+
+```
+
+Next, we'll look at the distribution of the BMI values ocross patients with diabetes. One thing to thnink of, is for the different educational groups- which could have a correlation with the different age groups- how is BMI distributed within this education group? Are we seeing the distribution being concentrated in the center, or are we seeing a skewness towards the higher BMI levels for these patients? Thus, can BMI be a significant predictor of diabetes ? 
+
+```{r graphage}
+diab_bmi <- initial_dta %>% filter(Diabetes_binary == 1)
+
+ggplot(diab_bmi) +
+  geom_density(mapping=aes(x=BMI ), fill = "blue" ,position="identity") + 
+  labs(x = "BMI Levels", title = "Distribution of BMI for Subjects with Diabetes")
+
+```
+
+
+## The Case for Age 
+
+
+Another area of interest was the interaction of age with the binary diabetes variable. Often times, diabetes is associated with people of older ages. However, we found it interesting to see how differing levels of age could determine if a person is more or less likely to have diabetes.  First, we'll see which  age groups tend to have better fitness and nutrition habits (such as whether or not the subject has had physical activity in the past 30 days, do they consume fruit one or more times a day, and do they consume 1 or more vegetables per day).These healthy indicators could provide insight on the patterns for age groups of those who have diabetes. 
+### Healthy Habits indicators broken out by Age gorup 
+
+
+```{r healthlist}
+
+PHYS <- data.frame(table(initial_dta$Age,initial_dta$PhysActivity)) %>% rename(Age_Group="Var1", Physical_Acitivty = "Var2", Phys_Freq = "Freq")
+
+FRUIT <- data.frame(table(initial_dta$Age,initial_dta$Fruits)) %>% rename(Age_Group="Var1", Consumes_Fruit = "Var2", Fruit_Consumption_Freq = "Freq")
+
+VEG <- data.frame(table(initial_dta$Age,initial_dta$Veggies)) %>% rename(Age_Group="Var1", Consumes_Veggies = "Var2", Veggie_Consumption_Freq = "Freq")
+
+
+Healthy_Habits_frequency <- list("PHYS" = PHYS,"FRUIT" = FRUIT,"VEGGIES" = VEG)
+
+Healthy_Habits_frequency 
+
+```
+
+
+This chunk of code graphs the frequency of people who have diabetes based on the healthy habits indicators, grouped by age groups. This would give us a chance to see which population of age group held the largest value, based on their health indicators. Are we seeing a consistent pattern in diabetes cases for those above or below the age ranges, or are the health and age factors playing roles in the cases? This series of bar charts might be able to provide insight. 
+
+Below observed the frequencies for whether or not a person has done physical activity in the past 30 days. 
+
+```{r physage, message = FALSE}
+
+initial_age_group_diab <- initial_dta %>% filter(Diabetes_binary ==1)
+
+phys_sum <- initial_age_group_diab %>% group_by(PhysActivity,Age) %>% summarize(sum_Diabetes= n())
+phys_sum$AgeGroup <- as.factor(phys_sum$Age)
+
+
+g <- ggplot(data = phys_sum,mapping=aes(x=AgeGroup ,y= sum_Diabetes, fill = AgeGroup), position = "dodge") +
+  geom_bar(stat= "identity" ) +
+  facet_wrap(~PhysActivity) + 
+  labs(x = "Age Group", y = "Count of Diabetes Cases", title = "Count of Diabetes for Each Physical Activity Indicator by Age Group")
+g
+
+```
+
+Finally, this next block of code graphs the frequency of people who have diabetes based on their fruit and veggie consumption. For simplicity of this report, below will combine the Fruits and Veggies variables into one factor based variable. First, we will create a new variable that adds the Fruits and Veggies column. The factor levels will be 0, if there is no consumption at all, 1 if there is consumption in either fruits or veggies, and 2 if there is consumption in both. Then, after summarizing the data by the healthy food indicator and age group, we will produce grouped bar charts of diabetes patients for each indicator by age group. 
+
+
+```{r eatage, message = FALSE}
+
+initial_age_group_diab$HealthyEating <- as.numeric(as.character(initial_age_group_diab$Fruits)) + as.numeric(as.character(initial_age_group_diab$Veggies))
+
+eat_sum <- initial_age_group_diab %>% group_by(HealthyEating,Age) %>% summarize(sum_Diabetes= n())
+eat_sum$AgeGroup <- as.factor(eat_sum$Age)
+
+g <- ggplot(data = eat_sum,mapping=aes(x=Age ,y= sum_Diabetes, fill = Age), position = "dodge") +
+  geom_bar(stat= "identity" ) +
+  facet_wrap(~HealthyEating) + 
+  labs(x = "Age Group", y = "Count of Diabetes Cases", title = "Count of Diabetes for Each Healthy Eating Indicator by Age Group")
+g
+
+```
+
+### Age and Mental Health 
+
+So far we've looked at the intersections of healthy habits, age and diabetes. Finally, it would be interesting to see if mental health, age and diabetes have any intersections. The main point of interest in this portion is to see if there is any possible correlation between age and how many days during the past 30 days the subject says their mental health was not good (which is the MentHlth variable). To visualize this, below looks at a scatter plot of age and MentHlth broken out by whether or not the subject had diabetes. Is there a higher prevalence of having experiences poor mental health in the past 30 days for any particular age groups? Is there a stronger correlation for those who have diabetes compared to those who did not? These and other questions that could possibly shed light in the modelling process could be further investigated using the below set of graphs. 
+
+```{r mentalage}
+ment_age <- initial_dta %>% group_by(Diabetes_binary, Age) %>% summarize(mental_health_sum = sum(as.numeric(MentHlth)))
+
+age_mental_scatter <- ggplot(ment_age, aes(x=Age,y=mental_health_sum)) +
+  geom_point(position= "jitter") + 
+  geom_smooth(method = lm) +
+  labs(x = "Ages", y= "Mental Health Days Not God", title= "Age by Number of Reported Days of Mental Health Not Good") +
+  facet_wrap(~Diabetes_binary)
+  
+
+age_mental_scatter
+
+```
+
+# Summarization and Modelling 
+
+## Log Loss 
+
+When working with data (such as the diabetes data we are using), that contains a binary response variable with the possible outcome of 0 or 1 (occurrence or no occurrence) one of the main goals in machine learning is to fit a model whose predictions are as close to the actual value as possible. In the statistics world, we want the probability that our predictions are equal to the actual value of the response to be as large possible. Log loss is a metric that uses the probability of obtaining our predicted values to determine how well our model fits the data and forecasts the response. To provide a view of the mechanics behind the model, we start with the notion that our binary response variable is a random variable that follows a Bernoulli distribution. Thus, to start, we calculate the likelihood of the probability of success for a random variable that follows the Bernoulli distribution with the parameter of p being the probability of success.
+$$L(p│x_1,…x_n )=∏_np^{x_i}*(1-p)^{1-x_i}$$
+After taking the log of the likelihood function, we divide the summation by the number of observations in order to find the average loss for over our sample and multiply by -1 to establish the notion that the lowest output value of the log loss is optimal:
+$$log-loss= -1/n \sum_{i=1}^{n} x_i log(p)+(1-x_i) log⁡(1-p)$$
+Thus, the lower the log-loss, the better our prediction, and the better our model fits the data. The log loss function is often preferred over the accuracy value because it is associated with how close the predictions were to the actual values, as opposed to just how many correct predictions there were out of the total predictions, which is what accuracy focuses on. When we are only observing the proportion of correct predictions as a measure of how well our model fits the data, we could be missing important information on how well the incorrect predictions fared with the actual values. Were they close? Was there a large amount of error? We wouldn't be able to have that kind of visibility when just looking at accuracy, whereas log-loss could give us an idea of how close our predictions are to the actual values, which is an indication of how much error we could be seeing from the target. 
+
+## Logistic Regression 
+
+Logistic regression is a modelling technique under the supervised learning umbrella of machine learning that works with binary data to predict the probability of an event occurring. Similar to linear regression, logistic regression can work to identify the relationship between explanatory variables and the target response variable. However, in the situation of logistic regression, the response variable is binary and has the value of 0 or 1 as opposed to a regular numeric response that can take on any number, depending on the unit of measurement. To start, the breakdown of the model is the following: $$P = e^{B_0 +B_1x}/1+e^{B_0 +B_1*x}$$ where P is the probability of an event occurring and $e^{B_0 +B_1x}$ is obtained by parameter estimation (mainly from using maximum likelihood), but theoretically, it comes from the log-odds function $Y = ln(P/1-P)$ which calculates the probability of an event happening divided by the probability of the event not happening, where Y can have the components of a linear regression without the error term $Y=B_0 +B_1x$. Thus, if we solve for the probability of an event occurring in terms of the odds that it will occur (Y), then we will get $P=Y/1+Y$ which makes the model the logistic regression. Thus, to sum, we have a categorical variable with the categories of 1 and 0 (event occurs or does not occur) given a set of explanatory variables. Logistic regression can use the explanatory variables to determine the probability of the response variable occurring. It must be noted that the the linear regression portions of the data can be extended to multiple linear regression cases as well. 
+
+### Modelling with Logistic Regression 
+
+Now that we have a good idea on the foundation and the purpose of logistic regression, let's look at fitting our binary heart disease data to a logistic regression model.
+
+Log-Loss Method Selection Criteria 
+
+Since we have explored the Log-loss criteria for modelling above, this first candidate will use the log-loss criteria to fit a model. Because logistic regression requires all of our variables to binary, we will convert the numeric variables that we have in the data to dummy variables. We will then fit the generalized linear model to the data under the binomial family with the logloss modelling metric. 
+
+
+```{r logloss, warning = FALSE}
+set.seed(10)
+
+cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education_1","HighBP",
+          "Smoker","Fruits","NoDocbcCost","Income","DiffWalk","HighChol","Stroke",
+          "Veggies","GenHlth","Sex","CholCheck","HeartDiseaseorAttack","HvyAlcoholConsump",
+          "MentHlth")
+
+initial_train[cols] <- lapply(initial_train[cols],factor)
+
+newcols <- dummyVars(~BMI + MentHlth + PhysHlth + Age + Education, data = initial_train, stringAsFactors = TRUE, sep = "_") %>% 
+  predict(newdata = initial_train)
+
+logdta <- cbind(initial_train,newcols) %>% 
+          dplyr::select(-BMI, -MentHlth, - PhysHlth, - Age, - Education,-Education_1,-Education_Level)
+
+levels(logdta$Diabetes_binary) = c("yes","no")
+
+logloss <- train(Diabetes_binary ~ ., data =  logdta,
+                       method = "glm",
+                       family = "binomial",
+                       preProcess = c("center", "scale"), 
+                       trControl = trainControl(method = "cv", number = 10,classProbs = TRUE, summaryFunction =mnLogLoss),
+                      metric = "logLoss",
+                 trace = FALSE
+                 )
+
+logloss$finalModel
+```
+
+This next model will use the stepAIC function in the forward direction to find a logistic model, still using the log loss metric. 
+
+```{r logloss2, warning=FALSE}
+
+
+set.seed(10)
+
+lowerfit <- glm(Diabetes_binary ~ 1, data = as.data.frame(logdta), family = binomial)
+
+upperfit <- glm(Diabetes_binary ~ ., data = as.data.frame(logdta), family = binomial)
+
+logloss2 <- stepAIC(lowerfit ,
+  data = logdta ,
+  family = "binomial",
+  direction = "forward",
+  trControl = trainControl(method = "cv", number = 3,classProbs = TRUE, summaryFunction =mnLogLoss),
+   metric = "logLoss",
+  scope=list(upper=upperfit,lower=lowerfit),
+  trace = FALSE
+  )
+
+# Backwards method takes a very long time I've found
+# 
+# 
+# logloss2 <- train(Diabetes_binary ~ . ,
+#   data = logdta ,
+#   method = 'glmStepAIC',
+#   family = "binomial",
+#   direction = "forward",
+#   trControl = trainControl(method = "cv", number = 3,classProbs = TRUE, summaryFunction =mnLogLoss),
+#   metric = "logLoss",
+#   trace = FALSE
+#  
+#   )
+
+logloss2$finalModel
+```
+
+The third model will use the StepAIC fuction in the forward direction where the metric is Accuracy
+
+```{r logloss3, warning=FALSE, eval = FALSE}
+
+set.seed(10)
+
+lowerfit <- glm(Diabetes_binary ~ 1, data = as.data.frame(logdta), family = binomial)
+
+upperfit <- glm(Diabetes_binary ~ ., data = as.data.frame(logdta), family = binomial)
+
+logloss3 <- stepAIC(lowerfit ,
+  data = logdta ,
+  family = "binomial",
+  direction = "forward",
+  trControl = trainControl(method = "cv", number = 3),
+  scope=list(upper=upperfit,lower=lowerfit),
+  metric = "Accuracy", 
+  trace = FALSE
+  )
+
+
+
+logloss3$deviance
+
+c(logloss3$deviance,logloss3$aic,logloss3$coefficients)
+
+```
+
+
+The model chosen will be LogLoss3 as this has the lowest amount of residual deviance, and the AIC is close to the lowest amount which was from the second logloss model. 
+
+
+## LASSO Logistic Regression
+
+LASSO stands for Least Absolute Shrinkage and Selection Operator. It is a regularization technique used to prevent overfitting and improve the interpretability of a statistical model. In the context of logistic regression and log-loss, LASSO adds a penalty term to the standard logistic regression log-loss function shown above. The formula is as follows:
+$$log-loss= -1/n \sum_{i=1}^{n} [x_i log(p)+(1-x_i)log(1-p)] + \lambda \sum_{j=1}^{m} |\theta_j|$$
+Where:
+- $ \theta_j $ is a model parameter,
+- $ m $ is the number of features, and
+- $ \lambda $ is the regularization parameter.
+
+The regularization term, $\lambda \sum_{j=1}^{m} |\theta_j|$, is added to the standard log-loss function, which penalizes the absolute values of the model parameters, encouraging the model to shrink some coefficients towards zero during the training process. This additional regularization helps prevent overfitting and can lead to a sparser model, where only the most relevant features are considered, which helps with simplicity and interpretability compared to the basic logistic model.
+
+The below code fits a LASSO logistic regression model using the log-loss criteria:
+```{r LASSO Model}
+ctrl <- trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction=mnLogLoss)
+
+LASSO_Model <- train(Diabetes_binary ~ .,
+                     data = logdta,
+                     method = "glmnet",
+                     trControl = ctrl,
+                     metric = "logLoss",
+                     preProcess= c("center", "scale"),
+                     tuneGrid = expand.grid(alpha = 1, lambda = seq(0, 1, by = 0.1))
+)
+
+LASSO_Model
+```
+
+## Random Forest Trees 
+
+Random forests trees are apart of the ensemble learning method for creating classification models. They are produced by creating multiple classification - or decision - trees through sampling methods such as bootstrapping or bagging. After creating the samples, a random group of classification trees is then selected  and predictions are done on each selection. Finally, the output of the random forest trees is the average of the predictions. By combining and averaging over multiple classification tees, random forests are often seen as generally more accurate ( even though they are known to lose some Interpretability that regular classification trees posess ), less prone to overfitting, and provide better predicitons overall when compared to regular classification trees. Below will use the training data to fit a random forest tree. After, a prediction will be created followed by a plot of the results.
+
+Because this is for classification purposes of prediction whether or not someone has diabites, the sqrt(p) will be used for the predictor m value. 
+
+```{r rndmfrst}
+# First, it seems that we have to convert the explanatory variables to numeric 
+
+rrdta <- initial_train %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
+
+rrtest <- initial_test %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
+
+# Now fit the model 
+rfFit <- randomForest(as.factor(Diabetes_binary)~., data = rrdta,mtry = round(sqrt(ncol(rrdta)),0), ntree = 200, importance = TRUE)
+
+#Plotting the Results 
+
+plot(rfFit, log="y", main = "Random Forest Plot")
+
+```
+
