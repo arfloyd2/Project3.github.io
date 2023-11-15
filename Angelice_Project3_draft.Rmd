@@ -11,8 +11,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r rndr, eval = FALSE, echo = FALSE}
 
- pwalk(c(1,3),rmarkdown::render(input = "Angelice_Project3_draft.Rmd",
+for(edlvl in c(1,3)) {rmarkdown::render(input = "Angelice_Project3_draft.Rmd",
               output_format = "github_document", 
+              output_file = paste0("Project3","Education level:",edlvl,".md"),
               output_options = list(
                 name_value_pairs = "value", 
                 toc = TRUE,
@@ -20,13 +21,17 @@ knitr::opts_chunk$set(echo = TRUE)
                 number_of_sections = TRUE, 
                 df_print = "paged", 
                 or_something = TRUE,
-                params = lapply(c(1,3),function(x){list(edlvl = x)}),
-                html_preview = FALSE,
-                output_file = paste0("Project3","Education level:",params$edlvl,".html")
+                params = edlvl,
+                html_preview = FALSE
                 
+              )
 )
-)
-)
+                }
+                
+
+
+
+#params = lapply(c(1,3),function(x){list(edlvl = x)}),
 ```
 
 
@@ -40,6 +45,7 @@ library(GGally)
 library(shiny)
 library(rmarkdown)
 library(MASS)
+library(randomForest)
 ```
 
 
@@ -49,9 +55,9 @@ Below reads in the binary heart disease data, converts the appropriate variables
 
 ```{r readin, message = FALSE}
 
-params$edlvl
+#params$edlvl
 
-initial_dta <- read_csv('diabetes_binary_health_indicators_BRFSS2015.csv') %>% mutate( Education_1 = ifelse(Education %in% c(1,2),1,Education)) %>% filter(Education1 == 1 )
+initial_dta <- read_csv('diabetes_binary_health_indicators_BRFSS2015.csv') %>% mutate( Education1 = ifelse(Education %in% c(1,2),1,Education)) %>% filter(Education1 ==  params$edlvl)
 
 
 cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education1","HighBP",
@@ -71,8 +77,8 @@ trainindex <- createDataPartition(initial_dta$Diabetes_binary,p = 0.70, list= FA
 
 #Now, split the data into 70% training and 30% testing
 
-initial_train <- initialdta[trainindex, ]
-initial_test <- initialdta[-trainindex, ]
+initial_train <- initial_dta[trainindex, ]
+initial_test <- initial_dta[-trainindex, ]
 
 #To help make our predictions valid, we are now going to standardize the numeric variables
 
@@ -135,7 +141,7 @@ diabgroup
 
 ```{r graphage}
 
-diab_age <- initial_dta %>% filter(Diabetes_binary == 1)
+diabage <- initial_dta %>% filter(Diabetes_binary == 1)
 
 ggplot(diabage) +
   #geom_histogram(mapping=aes(x=Age), position="identity", bins = 50) +
@@ -250,7 +256,7 @@ When working with data ( such as the diabetes data we are using) , that contians
 
 ## Logistic Regression 
 
-Logistic regrssion is a modelling technique under the supervised learning umbrella of Machine learning that works with binary data to predict the probability of an event occuring. Similar to linear regression, logistic regression can work to identify the relationship between explanatory variables and the target response variable. However, in the situatio of logistic regression, the response variable is binary and has the value of 0 or 1 as opposed to a regular numeric response that can take on any number- depending on the unit of measurement. To start the breakdown of the model is the following: $$P = e^{B_0 +B_1x}/1+e^{B_0 +B_1*x}$$ where P is the probability of an event occuring and $e^{B_0 +B_1x}$ is obtained by parameter estimation ( mainly from using maximum likelihood), but theoretically, it comes from the log-odds function $Y = ln(P/1-P)$ which calculates the probability of an event happening divided by the probability of the event not happening, where Y can have the components of a lineary regression wihout the erorr term $Y=B_0 +B_1x$ . Thus, if we solve for the probability of an event occuring in terms of the odds that it will occur (Y), then we will get $P=Y/1+Y$ which makes the model the logistic regression. Thus, to sum, we have a categorical variable with the categories of 0 and 1 - event occurs or does not occur- given a set of explanatory variables. Logistic regression can use the explanatory varibles to determine the probability of the response variable occuring. It must be noted that the the linear regrssion portions of the data can be extended to multiple linear regression cases as well. 
+Logistic regrssion is a modelling technique under the supervised learning umbrella of Machine learning that works with binary data to predict the probability of an event occuring. Similar to linear regression, logistic regression can work to identify the relationship between explanatory variables and the target response variable. However, in the situatio of logistic regression, the response variable is binary and has the value of 0 or 1 as opposed to a regular numeric response that can take on any number- depending on the unit of measurement. To start the breakdown of the model is the following: $$P = e^{B_0 +B_1x}/1+e^{B_0 +B_1*x}$$ where P is the probability of an event occuring and $e^{B_0 +B_1x}$ is obtained by parameter estimation ( mainly from using maximum likelihood), but theoretically, it comes from the log-odds function $Y = ln(P/1-P)$ which calculates the probability of an event happening divided by the probability of the event not happening, where Y can have the components similiar to  a linear regression wihout the erorr term $Y=B_0 +B_1x$ except $B_1x$ is the change in log-odds of success insetead of just the slope. Thus, if we solve for the probability of an event occuring in terms of the odds that it will occur (Y), then we will get $P=Y/1+Y$ which makes the model the logistic regression. Thus, to sum, we have a categorical variable with the categories of 0 and 1 - event occurs or does not occur- given a set of explanatory variables. Logistic regression can use the explanatory varibles to determine the probability of the response variable occuring. It must be noted that the the linear regrssion portions of the data can be extended to multiple linear regression cases as well. 
 
 ### Modelling with Logistic Regression 
 
@@ -264,12 +270,11 @@ Since we have explored the Log-loss criteria for modelling above, this first can
 ```{r logloss, warning = FALSE}
 set.seed(10)
 
-newcols <- dummyVars(~BMI + MentHlth + PhysHlth + Age + Education, data = initial_dta_train, stringAsFactors = TRUE, sep = "_") %>% 
-  predict(newdata = initial_dta_train)
+newcols <- dummyVars(~BMI + MentHlth + PhysHlth + Age + Education, data = initial_train, stringAsFactors = TRUE, sep = "_") %>% 
+  predict(newdata = initial_train)
 
-logdta <- cbind(initial_dta_train,newcols) %>%
-  select(-BMI, -MentHlth, - PhysHlth, - Age, - Education, -Education1) 
-
+logdta <- cbind(initial_train,newcols) %>% 
+          dplyr::select(-BMI, -MentHlth, - PhysHlth, - Age, - Education, -Education1)
 
 levels(logdta$Diabetes_binary) = c("yes","no")
 
@@ -281,8 +286,7 @@ logloss <- train(Diabetes_binary ~ ., data =  logdta,
                       metric = "logLoss"
                  )
 
-summary(logloss)
-logloss
+logloss$finalModel
 ```
 
 This next model will use the stepAIC function in the backward direction to find a logistic model, still using the log loss metric. 
@@ -299,12 +303,10 @@ logloss2 <- train(Diabetes_binary ~ . ,
   trace = FALSE
   )
 
-
-summary(logloss2)
-logloss2
+logloss2$finalModel
 ```
 
-This final model will use the StepAIC fuction in the forward direction where the metric is Accuracy
+The third model will use the StepAIC fuction in the forward direction where the metric is Accuracy
 
 ```{r logloss3, warning=FALSE}
 
@@ -325,6 +327,37 @@ logloss3 <- stepAIC(lowerfit ,
   )
 
 
-summary(logloss3)
-logloss3
+
+logloss3$deviance
+
+c(logloss3$deviance,logloss3$aic,logloss3$coefficients)
+
+```
+
+
+The model chosen will be LogLoss3 as this has the lowest amount of residual deviance, and the AIC is close to the lowest amount which was from the second logloss model. 
+
+
+## Random Forest Trees 
+
+Random forests trees are apart of the ensemble learning method for creating classification models. They are produced by creating multiple classification - or decision - trees through sampling methods such as bootstrapping or bagging. After creating the samples, a random group of classification trees is then selected  and predictions are done on each selection. Finally, the output of the random forest trees is the average of the predictions. By combining and averaging over multiple classification tees, random forests are often seen as generally more accurate ( even though they are known to lose some Interpretability that regular classification trees posess ), less prone to overfitting, and provide better predicitons overall when compared to regular classification trees. Below will use the training data to fit a random forest tree. After, a prediction will be created followed by a plot of the results.
+
+Because this is for classification purposes of prediction whether or not someone has diabites, the sqrt(p) will be used for the predictor m value. 
+
+```{r rndmfrst}
+# First, it seems that we have to convert the explanatory variables to numeric 
+
+rrdta <- initial_train %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
+
+rrtest <- initial_test %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
+
+# Now fit the model 
+rfFit <- randomForest(as.factor(Diabetes_binary)~., data = rrdta,mtry = round(sqrt(ncol(rrdta)),0), ntree = 200, importance = TRUE)
+
+#Plotting the Results I think the varImPlot, might be the one to use, but there is also the top plot that we can use. Feel free to point out which one you lik better. 
+
+plot(rfFit, log="y", main = "Random Forest Plot")
+
+varImpPlot(rfFit, main = "Random Forest Plot")
+
 ```
