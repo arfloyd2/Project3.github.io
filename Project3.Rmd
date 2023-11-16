@@ -24,7 +24,7 @@ params <- lapply(Education_params, FUN = function(x){list(Education_Level=x)})
 reports <- tibble(output_file, params)
 
 apply(reports, MARGIN = 1,
-      FUN = function(x){render(input = "Angelice_Project3_draft.Rmd",
+      FUN = function(x){render(input = "Project3.Rmd",
                                output_file = x[[1]], params = x[[2]],
                                output_options = list(
                                 name_value_pairs = "value", 
