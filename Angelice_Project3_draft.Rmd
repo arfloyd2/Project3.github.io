@@ -1,8 +1,8 @@
 ---
-title: "Project3 Education Level: `r params$edlvl` "
+title: "Project3 Education Level: `r params$Education_Level` "
 author: "Angelice Floyd and Michael Dolan"
 params:
-  Education_Level: "Elementary or less" 
+  Education_Level: "Elementary or less"
 ---
 
 ```{r setup, include=FALSE}
@@ -113,7 +113,7 @@ The particular dataset being used for this report contains data from the BRFSS c
     - PhysHlth: Physical illness or injury days in past 30 days
         - Scale: 1-30 days
     
-Here are all the packages used throughout this document:
+Below are all the packages used throughout this document:
 ```{r libraries}
 
 library(tidyverse)
@@ -168,15 +168,15 @@ testTransformed <- as_tibble(predict(preprocval,initial_test))
 
 # Exploratory Data Analysis 
 
-Because this data is in binary form, contingency tables and categorical visuals will be helpful since it will show how the different levels of those with and without diabetes compare to each other over levels of other categorical variables, as well as how values for the numerical variables compare at different levels for those with or without diabetes. 
+Because this Diabetes response variable is in binary form, contingency tables and categorical visuals will be helpful since it will show how the different levels of those with and without diabetes compare to each other over levels of other categorical variables, as well as how values for the numerical variables compare at different levels for those with or without diabetes. 
 
 ## Diabetes, Health Measures and Pre-Existing Conditions 
 
-It is often discussed that diet, and weight-related health issues such as obesity, high blood pressure and cholesterol are major contributing factors to complications with and obtaining diabetes. When the levels for these variabble are consistently high, there is often the observation that the chances for having diabetes later in life incerease. Thus, it would be interesting to see how the the levels of these variables in the data interact with patients who have diabetes - and in some cases, compared to the patients who do not have diabetes. 
+It is often discussed that diet, and weight-related health issues such as obesity, high blood pressure and cholesterol are major contributing factors to diagnosis and then after complications with diabetes. When the levels for these variables are consistently high, there is often the observation that the chances for having diabetes later in life increase. Thus, it would be interesting to see how the levels of variables such as BMI, and pre existing conditions- that impact these factors- in the data interact with patients who have diabetes - and in some cases, compared to the patients who do not have diabetes.
 
 ## Diabetes Patients and Pre-Existing Conditions 
 
-This frequency table will show the number of patients with and without diabetes who have (or do not have) high blood pressure, high cholesterol, have had stroke or have had a heart attack or heart disease.  
+The following frequency table will show the number of patients with and without diabetes who have (or do not have) high blood pressure, high cholesterol, have had stroke or have had a heart attack or heart disease.  
 
 
 ```{r healthconcerns}
@@ -200,13 +200,8 @@ Diabetes_disease_frequency
 
 ###  BMI  for Patients with Diabetes 
 
+In this section, we will explore the distributions and central measures for BMI in patients with Diabetes. First we will observe the mean, median and maximum of BMI for patients with and without diabetes
 
-In this section, we will explore the distributions and central measures for BMI in patients with Diabetes
-
-First we will observe the mean, median and maximum of BMI for patients with and without diabetes
-
-
-This section will look at some levels of center for BMI. 
 
 ```{r diab_bmi}
 initial_dta %>% summarise(Max_BMI = max(BMI), Mediam_BMI = median(BMI), Mean_BMI = mean(BMI), .by = Diabetes_binary)
@@ -226,7 +221,6 @@ ggplot(diab_bmi) +
 
 
 ## The Case for Age 
-
 
 Another area of interest was the interaction of age with the binary diabetes variable. Often times, diabetes is associated with people of older ages. However, we found it interesting to see how differing levels of age could determine if a person is more or less likely to have diabetes.  First, we'll see which  age groups tend to have better fitness and nutrition habits (such as whether or not the subject has had physical activity in the past 30 days, do they consume fruit one or more times a day, and do they consume 1 or more vegetables per day).These healthy indicators could provide insight on the patterns for age groups of those who have diabetes. 
 ### Healthy Habits indicators broken out by Age gorup 
@@ -248,7 +242,7 @@ Healthy_Habits_frequency
 ```
 
 
-This chunk of code graphs the frequency of people who have diabetes based on the healthy habits indicators, grouped by age groups. This would give us a chance to see which population of age group held the largest value, based on their health indicators. Are we seeing a consistent pattern in diabetes cases for those above or below the age ranges, or are the health and age factors playing roles in the cases? This series of bar charts might be able to provide insight. 
+Next, we will observe the frequency of people who have diabetes based on the healthy habits indicators moentioned above, grouped by age groups. This would give us a chance to see which population of age group held the largest value of diabetes patients, based on their health indicators. Are we seeing a consistent pattern in diabetes cases for those above or below the age ranges, or are the health and age factors playing roles in the cases? This series of bar charts might be able to provide insight. 
 
 Below observed the frequencies for whether or not a person has done physical activity in the past 30 days. 
 
@@ -316,7 +310,7 @@ Thus, the lower the log-loss, the better our prediction, and the better our mode
 
 ## Logistic Regression 
 
-Logistic regression is a modelling technique under the supervised learning umbrella of machine learning that works with binary data to predict the probability of an event occurring. Similar to linear regression, logistic regression can work to identify the relationship between explanatory variables and the target response variable. However, in the situation of logistic regression, the response variable is binary and has the value of 0 or 1 as opposed to a regular numeric response that can take on any number, depending on the unit of measurement. To start, the breakdown of the model is the following: $$P = e^{B_0 +B_1x}/1+e^{B_0 +B_1*x}$$ where P is the probability of an event occurring and $e^{B_0 +B_1x}$ is obtained by parameter estimation (mainly from using maximum likelihood), but theoretically, it comes from the log-odds function $Y = ln(P/1-P)$ which calculates the probability of an event happening divided by the probability of the event not happening, where Y can have the components of a linear regression without the error term $Y=B_0 +B_1x$. Thus, if we solve for the probability of an event occurring in terms of the odds that it will occur (Y), then we will get $P=Y/1+Y$ which makes the model the logistic regression. Thus, to sum, we have a categorical variable with the categories of 1 and 0 (event occurs or does not occur) given a set of explanatory variables. Logistic regression can use the explanatory variables to determine the probability of the response variable occurring. It must be noted that the the linear regression portions of the data can be extended to multiple linear regression cases as well. 
+Logistic regression is a modelling technique under the supervised learning umbrella of machine learning that works with binary data to predict the probability of an event occurring. Similar to linear regression, logistic regression can work to identify the relationship between explanatory variables and the target response variable. However, in the situation of logistic regression, the response variable is binary and has the value of 0 or 1 as opposed to a regular numeric response that can take on any number, depending on the unit of measurement. To start, the breakdown of the model is the following: $$P = e^{B_0 +B_1x}/1+e^{B_0 +B_1*x}$$ where P is the probability of an event occurring, the $B_k$ terms are the change in log odds of an event occuring, and $e^{B_0 +B_1x}$ is obtained by parameter estimation (mainly from using maximum likelihood), but theoretically, it comes from the log-odds function $Y = ln(P/1-P)$ which calculates the probability of an event happening divided by the probability of the event not happening. Thus, if we solve for the probability of an event occurring in terms of the odds that it will occur (Y), then we will get $P=Y/1+Y$ which makes the model the logistic regression. Thus, to sum, we have a categorical variable with the categories of 1 and 0 (event occurs or does not occur) given a set of explanatory variables. Logistic regression can use the explanatory variables to determine the probability of the response variable occurring. It must be noted that the the linear regression portions of the data can be extended to multivariate  cases as well. 
 
 ### Modelling with Logistic Regression 
 
@@ -324,7 +318,7 @@ Now that we have a good idea on the foundation and the purpose of logistic regre
 
 Log-Loss Method Selection Criteria 
 
-Since we have explored the Log-loss criteria for modelling above, this first candidate will use the log-loss criteria to fit a model. Because logistic regression requires all of our variables to binary, we will convert the numeric variables that we have in the data to dummy variables. We will then fit the generalized linear model to the data under the binomial family with the logloss modelling metric. 
+Since we have explored the Log-loss criteria for modelling above, the first two candidates will use the log-loss criteria to fit a model. Because logistic regression requires all of our variables to binary, we will convert the numeric variables that we have in the data to dummy variables. We will then fit the generalized linear model to the data under the binomial family with the logloss modelling metric. 
 
 
 ```{r logloss, warning = FALSE}
@@ -337,15 +331,14 @@ cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education_1","HighBP
 
 initial_train[cols] <- lapply(initial_train[cols],factor)
 
-newcols <- dummyVars(~BMI + MentHlth + PhysHlth + Age + Education, data = initial_train, stringAsFactors = TRUE, sep = "_") %>% 
-  predict(newdata = initial_train)
+initial_train$BMI <- as.numeric(initial_train$BMI)
+initial_train$MentHlth <- as.numeric(initial_train$MentHlth)
+initial_train$PhysHlth <- as.numeric(initial_train$PhysHlth)
 
-logdta <- cbind(initial_train,newcols) %>% 
-          dplyr::select(-BMI, -MentHlth, - PhysHlth, - Age, - Education,-Education_1,-Education_Level)
 
-levels(logdta$Diabetes_binary) = c("yes","no")
+levels(initial_train$Diabetes_binary) = c("yes","no")
 
-logloss <- train(Diabetes_binary ~ ., data =  logdta,
+logloss <- train(Diabetes_binary ~ ., data =  initial_train,
                        method = "glm",
                        family = "binomial",
                        preProcess = c("center", "scale"), 
@@ -364,9 +357,9 @@ This next model will use the stepAIC function in the forward direction to find a
 
 set.seed(10)
 
-lowerfit <- glm(Diabetes_binary ~ 1, data = as.data.frame(logdta), family = binomial)
+lowerfit <- glm(Diabetes_binary ~ 1, data = as.data.frame(initial_train), family = binomial)
 
-upperfit <- glm(Diabetes_binary ~ ., data = as.data.frame(logdta), family = binomial)
+upperfit <- glm(Diabetes_binary ~ ., data = as.data.frame(initial_train), family = binomial)
 
 logloss2 <- stepAIC(lowerfit ,
   data = logdta ,
@@ -378,19 +371,6 @@ logloss2 <- stepAIC(lowerfit ,
   trace = FALSE
   )
 
-# Backwards method takes a very long time I've found
-# 
-# 
-# logloss2 <- train(Diabetes_binary ~ . ,
-#   data = logdta ,
-#   method = 'glmStepAIC',
-#   family = "binomial",
-#   direction = "forward",
-#   trControl = trainControl(method = "cv", number = 3,classProbs = TRUE, summaryFunction =mnLogLoss),
-#   metric = "logLoss",
-#   trace = FALSE
-#  
-#   )
 
 logloss2$finalModel
 ```
@@ -401,9 +381,9 @@ The third model will use the StepAIC fuction in the forward direction where the 
 
 set.seed(10)
 
-lowerfit <- glm(Diabetes_binary ~ 1, data = as.data.frame(logdta), family = binomial)
+lowerfit <- glm(Diabetes_binary ~ 1, data = as.data.frame(initial_train), family = binomial)
 
-upperfit <- glm(Diabetes_binary ~ ., data = as.data.frame(logdta), family = binomial)
+upperfit <- glm(Diabetes_binary ~ ., data = as.data.frame(initial_train), family = binomial)
 
 logloss3 <- stepAIC(lowerfit ,
   data = logdta ,
@@ -443,7 +423,7 @@ The below code fits a LASSO logistic regression model using the log-loss criteri
 ctrl <- trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction=mnLogLoss)
 
 LASSO_Model <- train(Diabetes_binary ~ .,
-                     data = logdta,
+                     data = initial_train,
                      method = "glmnet",
                      trControl = ctrl,
                      metric = "logLoss",
@@ -461,8 +441,8 @@ Random forests trees are apart of the ensemble learning method for creating clas
 Because this is for classification purposes of prediction whether or not someone has diabites, the sqrt(p) will be used for the predictor m value. 
 
 ```{r rndmfrst, eval = FALSE}
-# First, it seems that we have to convert the explanatory variables to numeric 
 
+# Convert the explanatory variables to numeric 
 rrdta <- initial_train %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
 
 rrtest <- initial_test %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
@@ -476,3 +456,16 @@ plot(rfFit, log="y", main = "Random Forest Plot")
 
 ```
 
+
+## New Model : Log Binomial 
+
+The log binomial is a generalized linear regression model that uses a binary outcome (0/1), but instead of using the logit function $Y = ln(P/1-P)$ as a link between the response and the linear regression, the log link function is used $ln(p) = B_0 + B_1X_1 + ... + B_kX_k$ . One of the most prominent methods for estiming the parameters of the model is the expectation maximimization algorithm which finds the maximum likelihood estimates by alternating between he expected value of the log-likelihood of a particular distribution and the parameters that maximize the expectation. The left hand side of the equation is now the log of the probability and when we do the  exponentiation one of the regression coefficients, we get a risk ratio for a one unit change in x instead of the log-odds ratio of a 1 unit change in X. The risk ratio focuses on the risk of the occurrence of the response in one level of a explanatory group compared to the risk of occurrence of a response in another group. For example, if we put it in the context of our data, what is the risk of a person having Diabetes if the were a smoker compared to the risk of a person having diabetes if they were not a smoker? One thing to note about this model is that the there is a possibility of the model having difficulty converging, even with the presence of likelihood, so that would be something to look out for when using this model. The following code will find the log-binomial model using the EM method. 
+
+```{r logbin, warning=FALSE}
+
+logbinmodel <- glm(Diabetes_binary ~ . , family = binomial(log), 
+   data = initial_train,
+  trace = FALSE, maxit = 100)
+
+logbinmodel$
+```
