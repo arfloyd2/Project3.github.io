@@ -124,7 +124,7 @@ library(rmarkdown)
 library(MASS)
 library(glmnet)
 library(randomForest)
-library(logbin)
+library(nnet)
 ```
 
 
@@ -501,51 +501,34 @@ plot(rfFit, log="y", main = "Random Forest Plot")
 ```
 
 
-## New Model : Log Binomial : I 
+## New Model : Neural Networks 
 
-The log binomial is a generalized linear regression model that uses a binary outcome (0/1), but instead of using the logit function $Y = ln(P/1-P)$ as a link between the response and the linear regression, the log link function is used $ln(p) = B_0 + B_1X_1 + ... + B_kX_k$ . One of the most prominent methods for estiming the parameters of the model is the expectation maximimization algorithm which finds the maximum likelihood estimates by alternating between he expected value of the log-likelihood of a particular distribution and the parameters that maximize the expectation. The left hand side of the equation is now the log of the probability and when we do the  exponentiation one of the regression coefficients, we get a risk ratio for a one unit change in x instead of the log-odds ratio of a 1 unit change in X. The risk ratio focuses on the risk of the occurrence of the response in one level of a explanatory group compared to the risk of occurrence of a response in another group. For example, if we put it in the context of our data, what is the risk of a person having Diabetes if the were a smoker compared to the risk of a person having diabetes if they were not a smoker? One thing to note about this model is that the there is a possibility of the model having difficulty converging, even with the presence of likelihood, so that would be something to look out for when using this model. The following code will find the log-binomial model using the logLoss method. 
+By now, we are aware that logistic regression is useful for classifying a binary variable. However, logistic regression can often be seen as a single layer to a larger method of classification - which the neural network method. At it's core, neural network are central functions that can work on multiple inputs and can deal with linear and nonlinear datasets. Further the neural networks operate in a way in which they train their meausrements and functions to make precise decisions on how to classify a single or group of variables. THus, logistic regression can be seen as a form of a neural network that works on classifying one binary variable into a success or failure ( 0/1) category. The below model utilizes cross validation and the log loss metric as standards for the neural network operation to predict whether or not a participant has diabetes. 
+
 
 ```{r logbin, warning=FALSE}
-#set.seed(110)
-
-#logbinmodel <- logbin(Diabetes_binary~ PhysActivity + AnyHealthcare + HighBP +
-#          Smoker + Fruits + NoDocbcCost + Income + DiffWalk + HighChol + Stroke +
- #         Veggies + GenHlth + Sex + CholCheck + HeartDiseaseorAttack + HvyAlcoholConsump, data=initial_train, 
- #                       family='binomial(link="logit")'
-  #       )
-
- set.seed(10) 
- 
- cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education_1","HighBP",
-           "Smoker","Fruits","NoDocbcCost","Income","DiffWalk","HighChol","Stroke",
-           "Veggies","GenHlth","Sex","CholCheck","HeartDiseaseorAttack","HvyAlcoholConsump",
-           "Age","Education")
- 
- initial_train[cols] <- lapply(initial_train[cols],factor)
- 
- initial_train$BMI <- as.numeric(initial_train$BMI)
- initial_train$MentHlth <- as.numeric(initial_train$MentHlth)
- initial_train$PhysHlth <- as.numeric(initial_train$PhysHlth)
-# 
-# 
-# # ALTERNATIVE FOR LATER LIGHTGBM if I can't use logbinom
-# 
-# 
-# test <- train(Diabetes_binary ~ ., data =  initial_train,
-#                        method = "glm",
-#                        family = "binomial",
-#                       
-#                        preProcess = c("center", "scale"), 
-#                        trControl = trainControl(method = "cv", number = 5,classProbs = TRUE, summaryFunction =mnLogLoss),
-#                       metric = "binary_logLoss",
-#                  trace = FALSE
-#                  )
-# 
-# summary(test)
-# 
-# 
-# 
 
 
-summary(logbinmodel) 
+cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","HighBP",
+          "Smoker","Fruits","NoDocbcCost","Income","DiffWalk","HighChol","Stroke",
+          "Veggies","GenHlth","Sex","CholCheck","HeartDiseaseorAttack","HvyAlcoholConsump",
+          "Age") 
+
+
+logdta <- initial_train %>% dplyr::select(!c(Education_Level,MentHlth,PhysHlth,BMI,Education,Education_1))
+
+logdta[cols] <- lapply(logdta[cols],factor)
+
+levels(logdta$Diabetes_binary)=c('Yes','No')
+
+Neural_Model <- train(Diabetes_binary ~ .,
+                     data = logdta,
+                     method = "nnet",
+                     trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction=mnLogLoss),
+                     metric = "logLoss",
+                     preProcess= c("center", "scale"),
+                     trace  = FALSE
+)
+
+Neural_Model$results
 ```
