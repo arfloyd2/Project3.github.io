@@ -411,6 +411,8 @@ logloss <- train(Diabetes_binary ~ ., data =  initial_train,
                  )
 
 summary(logloss)
+
+mnLogLoss(initial_test, lev = c("No", "Yes"))
 ```
 
 This next model will observe the interaction between Sex and Age
@@ -503,7 +505,7 @@ The below code fits a Classification Tree model using the log-loss criteria:
 ```{r}
 logdta$Diabetes_binary <- as.factor(logdta$Diabetes_binary)
 Class_Tree <- train(Diabetes_binary ~ .,
-                     data = logdta,
+                     data = initial_train,
                      method = "rpart",
                      trControl = ctrl,
                      metric = "logLoss",
@@ -511,7 +513,6 @@ Class_Tree <- train(Diabetes_binary ~ .,
                      tuneGrid = data.frame(cp = seq(0, 0.5, by = 0.05))
                       )
 
-Class_Tree
 ```
 
 
@@ -552,18 +553,9 @@ By now, we are aware that logistic regression is useful for classifying a binary
 
 ```{r neuro, warning=FALSE}
 
+logdta_train <- initial_train %>% dplyr::select(!c(Education_Level,MentHlth,PhysHlth,BMI))
 
-cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","HighBP",
-          "Smoker","Fruits","NoDocbcCost","Income","DiffWalk","HighChol","Stroke",
-          "Veggies","GenHlth","Sex","CholCheck","HeartDiseaseorAttack","HvyAlcoholConsump",
-          "Age") 
-
-
-logdta <- initial_train %>% dplyr::select(!c(Education_Level,MentHlth,PhysHlth,BMI,Education,Education_1))
-
-logdta[cols] <- lapply(logdta[cols],factor)
-
-levels(logdta$Diabetes_binary)=c('Yes','No')
+logdta_test <- initial_train %>% dplyr::select(!c(Education_Level,MentHlth,PhysHlth,BMI))
 
 Neural_Model <- train(Diabetes_binary ~ .,
                      data = logdta,
