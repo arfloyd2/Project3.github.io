@@ -327,7 +327,7 @@ set.seed(10)
 cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education_1","HighBP",
           "Smoker","Fruits","NoDocbcCost","Income","DiffWalk","HighChol","Stroke",
           "Veggies","GenHlth","Sex","CholCheck","HeartDiseaseorAttack","HvyAlcoholConsump",
-          "MentHlth")
+          "Age")
 
 initial_train[cols] <- lapply(initial_train[cols],factor)
 
@@ -347,29 +347,25 @@ logloss <- train(Diabetes_binary ~ ., data =  initial_train,
                  trace = FALSE
                  )
 
-logloss$finalModel
+summary(logloss)
 ```
 
 This next model will use the stepAIC function in the forward direction to find a logistic model, still using the log loss metric. 
 
 ```{r logloss2, warning=FALSE}
 
-
-set.seed(10)
-
-lowerfit <- glm(Diabetes_binary ~ 1, data = as.data.frame(initial_train), family = binomial)
-
-upperfit <- glm(Diabetes_binary ~ ., data = as.data.frame(initial_train), family = binomial)
-
-logloss2 <- stepAIC(lowerfit ,
-  data = logdta ,
-  family = "binomial",
-  direction = "forward",
+logdta <- initial_train %>% dplyr::select(!c(Education_Level))
+  
+  
+logloss2 <- train(Diabetes_binary~.,
+                  data = logdta,
+                  method = "glmStepAIC",
+                  direction = "forward",
   trControl = trainControl(method = "cv", number = 3,classProbs = TRUE, summaryFunction =mnLogLoss),
    metric = "logLoss",
-  scope=list(upper=upperfit,lower=lowerfit),
-  trace = FALSE
-  )
+  family = "binomial",
+                  trace = FALSE
+)
 
 
 logloss2$finalModel
@@ -379,32 +375,37 @@ The third model will use the StepAIC fuction in the forward direction where the 
 
 ```{r logloss3, warning=FALSE, eval = FALSE}
 
-set.seed(10)
-
-lowerfit <- glm(Diabetes_binary ~ 1, data = as.data.frame(initial_train), family = binomial)
-
-upperfit <- glm(Diabetes_binary ~ ., data = as.data.frame(initial_train), family = binomial)
-
-logloss3 <- stepAIC(lowerfit ,
-  data = logdta ,
-  family = "binomial",
-  direction = "forward",
+logloss3 <- train(Diabetes_binary~.,
+                  data = logdta,
+                  method = "glmStepAIC",
+                  direction = "forward",
   trControl = trainControl(method = "cv", number = 3),
-  scope=list(upper=upperfit,lower=lowerfit),
-  metric = "Accuracy", 
-  trace = FALSE
-  )
+  family = "binomial",
+                  trace = FALSE
+)
 
 
+logloss3$finalModel
+```
 
-logloss3$deviance
 
-c(logloss3$deviance,logloss3$aic,logloss3$coefficients)
+We Will now pull the diviance and the AIC for all three logloss models to compare which model we should choose
+
+```{r loglosscomp}
+model_method <- c("logLoss1_full_Model","logLoss2_Forward","Accuracy_Forward")
+deviance <- c(logloss$finalModel$deviance,logloss2$finalModel$deviance,logloss3$finalModel$deviance)
+aic<- c(logloss$finalModel$aic,logloss2$finalModel$aic,logloss3$finalModel$aic)
+
+data.frame(model_method,deviance,aic)
 
 ```
 
 
-The model chosen will be LogLoss3 as this has the lowest amount of residual deviance, and the AIC is close to the lowest amount which was from the second logloss model. 
+
+
+
+
+d the AIC is close to the lowest amount which was from the second logloss model. 
 
 
 ## LASSO Logistic Regression
@@ -423,7 +424,7 @@ The below code fits a LASSO logistic regression model using the log-loss criteri
 ctrl <- trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction=mnLogLoss)
 
 LASSO_Model <- train(Diabetes_binary ~ .,
-                     data = initial_train,
+                     data = logdta,
                      method = "glmnet",
                      trControl = ctrl,
                      metric = "logLoss",
@@ -443,9 +444,9 @@ Because this is for classification purposes of prediction whether or not someone
 ```{r rndmfrst, eval = FALSE}
 
 # Convert the explanatory variables to numeric 
-rrdta <- initial_train %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
+rrdta <- logdta %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
 
-rrtest <- initial_test %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
+rrtest <- logdta %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
 
 # Now fit the model 
 rfFit <- randomForest(as.factor(Diabetes_binary)~., data = rrdta,mtry = round(sqrt(ncol(rrdta)),0), ntree = 200, importance = TRUE)
@@ -463,9 +464,10 @@ The log binomial is a generalized linear regression model that uses a binary out
 
 ```{r logbin, warning=FALSE}
 
-logbinmodel <- glm(Diabetes_binary ~ . , family = binomial(log), 
-   data = initial_train,
-  trace = FALSE, maxit = 100)
+logbinmodel <- glm(Diabetes_binary~ PhysActivity + AnyHealthcare + HighBP +
+          Smoker + Fruits + NoDocbcCost + Income + DiffWalk + HighChol + Stroke +
+          Veggies + GenHlth + Sex + CholCheck + HeartDiseaseorAttack + HvyAlcoholConsump, data=initial_train1, 
+                        family=binomial(link="logit"))
 
-logbinmodel$
+summary(logbinmodel)
 ```
