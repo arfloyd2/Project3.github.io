@@ -512,7 +512,7 @@ By now, we are aware that logistic regression is useful for classifying a binary
 cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","HighBP",
           "Smoker","Fruits","NoDocbcCost","Income","DiffWalk","HighChol","Stroke",
           "Veggies","GenHlth","Sex","CholCheck","HeartDiseaseorAttack","HvyAlcoholConsump",
-          "Age")
+          "Age") 
 
 
 logdta <- initial_train %>% filter(Education_1 == 3) %>% dplyr::select(!c(Education_Level,MentHlth,PhysHlth,BMI,Education,Education_1))
