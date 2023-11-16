@@ -547,5 +547,5 @@ The log binomial is a generalized linear regression model that uses a binary out
 # 
 
 
-summary(logbinmodel)
+summary(logbinmodel) 
 ```
