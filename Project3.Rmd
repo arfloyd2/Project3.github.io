@@ -515,7 +515,7 @@ cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","HighBP",
           "Age") 
 
 
-logdta <- initial_train %>% filter(Education_1 == 3) %>% dplyr::select(!c(Education_Level,MentHlth,PhysHlth,BMI,Education,Education_1))
+logdta <- initial_train %>% dplyr::select(!c(Education_Level,MentHlth,PhysHlth,BMI,Education,Education_1))
 
 logdta[cols] <- lapply(logdta[cols],factor)
 
