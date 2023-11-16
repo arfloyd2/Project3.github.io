@@ -124,6 +124,7 @@ library(rmarkdown)
 library(MASS)
 library(glmnet)
 library(randomForest)
+library(logbin)
 ```
 
 
@@ -335,14 +336,13 @@ initial_train$BMI <- as.numeric(initial_train$BMI)
 initial_train$MentHlth <- as.numeric(initial_train$MentHlth)
 initial_train$PhysHlth <- as.numeric(initial_train$PhysHlth)
 
-
-levels(initial_train$Diabetes_binary) = c("yes","no")
+levels(initial_train$Diabetes_binary)=c("Yes","No")
 
 logloss <- train(Diabetes_binary ~ ., data =  initial_train,
                        method = "glm",
                        family = "binomial",
                        preProcess = c("center", "scale"), 
-                       trControl = trainControl(method = "cv", number = 10,classProbs = TRUE, summaryFunction =mnLogLoss),
+                       trControl = trainControl(method = "cv", number = 5,classProbs = TRUE, summaryFunction =mnLogLoss),
                       metric = "logLoss",
                  trace = FALSE
                  )
@@ -350,62 +350,86 @@ logloss <- train(Diabetes_binary ~ ., data =  initial_train,
 summary(logloss)
 ```
 
-This next model will use the stepAIC function in the forward direction to find a logistic model, still using the log loss metric. 
-
-```{r logloss2, warning=FALSE}
-
-logdta <- initial_train %>% dplyr::select(!c(Education_Level))
-  
-  
-logloss2 <- train(Diabetes_binary~.,
-                  data = logdta,
-                  method = "glmStepAIC",
-                  direction = "forward",
-  trControl = trainControl(method = "cv", number = 3,classProbs = TRUE, summaryFunction =mnLogLoss),
-   metric = "logLoss",
-  family = "binomial",
-                  trace = FALSE
-)
+This next model will observe the interaction between Sex and Age
 
 
-logloss2$finalModel
+```{r logloss2, warning = FALSE}
+
+set.seed(10)
+
+cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education_1","HighBP",
+          "Smoker","Fruits","NoDocbcCost","Income","DiffWalk","HighChol","Stroke",
+          "Veggies","GenHlth","Sex","CholCheck","HeartDiseaseorAttack","HvyAlcoholConsump",
+          "Age")
+
+initial_train[cols] <- lapply(initial_train[cols],factor)
+
+initial_train$BMI <- as.numeric(initial_train$BMI)
+initial_train$MentHlth <- as.numeric(initial_train$MentHlth)
+initial_train$PhysHlth <- as.numeric(initial_train$PhysHlth)
+
+levels(initial_train$Diabetes_binary)=c("Yes","No")
+
+logloss2 <- train(Diabetes_binary ~ . + Sex:Age, data =  initial_train,
+                       method = "glm",
+                       family = "binomial",
+                       preProcess = c("center", "scale"), 
+                       trControl = trainControl(method = "cv", number = 5,classProbs = TRUE, summaryFunction =mnLogLoss),
+                      metric = "logLoss",
+                 trace = FALSE
+                 )
+summary(logloss2)
 ```
 
-The third model will use the StepAIC fuction in the forward direction where the metric is Accuracy
+The third model will use tsame interactions, but will use the squared term for mental health. 
 
-```{r logloss3, warning=FALSE, eval = FALSE}
+```{r logloss3, warning = FALSE}
 
-logloss3 <- train(Diabetes_binary~.,
-                  data = logdta,
-                  method = "glmStepAIC",
-                  direction = "forward",
-  trControl = trainControl(method = "cv", number = 3),
-  family = "binomial",
-                  trace = FALSE
-)
+set.seed(10)
 
+cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education_1","HighBP",
+          "Smoker","Fruits","NoDocbcCost","Income","DiffWalk","HighChol","Stroke",
+          "Veggies","GenHlth","Sex","CholCheck","HeartDiseaseorAttack","HvyAlcoholConsump",
+          "Age","Education")
 
-logloss3$finalModel
+initial_train[cols] <- lapply(initial_train[cols],factor)
+
+initial_train$BMI <- as.numeric(initial_train$BMI)
+initial_train$MentHlth <- as.numeric(initial_train$MentHlth)
+initial_train$PhysHlth <- as.numeric(initial_train$PhysHlth)
+
+levels(initial_train$Diabetes_binary)=c("Yes","No")
+
+logloss3 <- train(Diabetes_binary ~ . + Sex:Age + I(MentHlth^2), data =  initial_train,
+                       method = "glm",
+                       family = "binomial",
+                       preProcess = c("center", "scale"), 
+                       trControl = trainControl(method = "cv", number = 5,classProbs = TRUE, summaryFunction =mnLogLoss),
+                      metric = "logLoss",
+                 trace = FALSE
+                 )
+summary(logloss3)
 ```
 
 
 We Will now pull the diviance and the AIC for all three logloss models to compare which model we should choose
 
 ```{r loglosscomp}
-model_method <- c("logLoss1_full_Model","logLoss2_Forward","Accuracy_Forward")
+model_method <- c("logLoss1_full_Model","logLoss2_SEX:Age","LogLoss3_Sex:Age_MentalHealth^2")
 deviance <- c(logloss$finalModel$deviance,logloss2$finalModel$deviance,logloss3$finalModel$deviance)
 aic<- c(logloss$finalModel$aic,logloss2$finalModel$aic,logloss3$finalModel$aic)
 
 data.frame(model_method,deviance,aic)
 
 ```
+From the output, for the aggregate of the whole data, the deviance was lower for the interaction between Sex and Age plus the Squared term for Mental Health. Thus, the final model used will be The third model.
+
+```{r predict}
+logloss3$finalModel
+```
 
 
 
-
-
-
-d the AIC is close to the lowest amount which was from the second logloss model. 
 
 
 ## LASSO Logistic Regression
@@ -423,8 +447,20 @@ The below code fits a LASSO logistic regression model using the log-loss criteri
 ```{r LASSO Model}
 ctrl <- trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction=mnLogLoss)
 
+cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education_1","HighBP",
+          "Smoker","Fruits","NoDocbcCost","Income","DiffWalk","HighChol","Stroke",
+          "Veggies","GenHlth","Sex","CholCheck","HeartDiseaseorAttack","HvyAlcoholConsump",
+          "Age","Education")
+
+
+#logdta <- dplyr::select(initial_train,-c('Education_Level','BMI','MentHlth','PhysHlth'))
+
+initial_train[cols] <- lapply(initial_train[cols],factor)
+
+levels(initial_train$Diabetes_binary)=c("Yes","No")
+
 LASSO_Model <- train(Diabetes_binary ~ .,
-                     data = logdta,
+                     data = initial_train,
                      method = "glmnet",
                      trControl = ctrl,
                      metric = "logLoss",
@@ -432,7 +468,7 @@ LASSO_Model <- train(Diabetes_binary ~ .,
                      tuneGrid = expand.grid(alpha = 1, lambda = seq(0, 1, by = 0.1))
 )
 
-LASSO_Model
+LASSO_Model$results
 ```
 
 ## Random Forest Trees 
@@ -441,33 +477,75 @@ Random forests trees are apart of the ensemble learning method for creating clas
 
 Because this is for classification purposes of prediction whether or not someone has diabites, the sqrt(p) will be used for the predictor m value. 
 
-```{r rndmfrst, eval = FALSE}
+```{r rndmfrst, warning= FALSE}
+set.seed(110)
+
+levels(initial_train$Diabetes_binary)=c(1,0)
 
 # Convert the explanatory variables to numeric 
-rrdta <- logdta %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
+rrdta <- initial_train %>% dplyr::select(!Education_Level) %>% filter(Education_1 == 3) %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
 
-rrtest <- logdta %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
+rrtest <- initial_test %>% dplyr::select(!Education_Level) %>% filter(Education_1 == 3) %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
 
 # Now fit the model 
-rfFit <- randomForest(as.factor(Diabetes_binary)~., data = rrdta,mtry = round(sqrt(ncol(rrdta)),0), ntree = 200, importance = TRUE)
+rfFit <- randomForest(Diabetes_binary~., data = rrdta, mtry = round(sqrt(ncol(rrdta)),0), ntree = 200, importance = TRUE)
+
+rfFit$importance
+
 
 #Plotting the Results 
+
 
 plot(rfFit, log="y", main = "Random Forest Plot")
 
 ```
 
 
-## New Model : Log Binomial 
+## New Model : Log Binomial : I 
 
-The log binomial is a generalized linear regression model that uses a binary outcome (0/1), but instead of using the logit function $Y = ln(P/1-P)$ as a link between the response and the linear regression, the log link function is used $ln(p) = B_0 + B_1X_1 + ... + B_kX_k$ . One of the most prominent methods for estiming the parameters of the model is the expectation maximimization algorithm which finds the maximum likelihood estimates by alternating between he expected value of the log-likelihood of a particular distribution and the parameters that maximize the expectation. The left hand side of the equation is now the log of the probability and when we do the  exponentiation one of the regression coefficients, we get a risk ratio for a one unit change in x instead of the log-odds ratio of a 1 unit change in X. The risk ratio focuses on the risk of the occurrence of the response in one level of a explanatory group compared to the risk of occurrence of a response in another group. For example, if we put it in the context of our data, what is the risk of a person having Diabetes if the were a smoker compared to the risk of a person having diabetes if they were not a smoker? One thing to note about this model is that the there is a possibility of the model having difficulty converging, even with the presence of likelihood, so that would be something to look out for when using this model. The following code will find the log-binomial model using the EM method. 
+The log binomial is a generalized linear regression model that uses a binary outcome (0/1), but instead of using the logit function $Y = ln(P/1-P)$ as a link between the response and the linear regression, the log link function is used $ln(p) = B_0 + B_1X_1 + ... + B_kX_k$ . One of the most prominent methods for estiming the parameters of the model is the expectation maximimization algorithm which finds the maximum likelihood estimates by alternating between he expected value of the log-likelihood of a particular distribution and the parameters that maximize the expectation. The left hand side of the equation is now the log of the probability and when we do the  exponentiation one of the regression coefficients, we get a risk ratio for a one unit change in x instead of the log-odds ratio of a 1 unit change in X. The risk ratio focuses on the risk of the occurrence of the response in one level of a explanatory group compared to the risk of occurrence of a response in another group. For example, if we put it in the context of our data, what is the risk of a person having Diabetes if the were a smoker compared to the risk of a person having diabetes if they were not a smoker? One thing to note about this model is that the there is a possibility of the model having difficulty converging, even with the presence of likelihood, so that would be something to look out for when using this model. The following code will find the log-binomial model using the logLoss method. 
 
 ```{r logbin, warning=FALSE}
+#set.seed(110)
 
-logbinmodel <- glm(Diabetes_binary~ PhysActivity + AnyHealthcare + HighBP +
-          Smoker + Fruits + NoDocbcCost + Income + DiffWalk + HighChol + Stroke +
-          Veggies + GenHlth + Sex + CholCheck + HeartDiseaseorAttack + HvyAlcoholConsump, data=initial_train1, 
-                        family=binomial(link="logit"))
+#logbinmodel <- logbin(Diabetes_binary~ PhysActivity + AnyHealthcare + HighBP +
+#          Smoker + Fruits + NoDocbcCost + Income + DiffWalk + HighChol + Stroke +
+ #         Veggies + GenHlth + Sex + CholCheck + HeartDiseaseorAttack + HvyAlcoholConsump, data=initial_train, 
+ #                       family='binomial(link="logit")'
+  #       )
+
+ set.seed(10)
+ 
+ cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education_1","HighBP",
+           "Smoker","Fruits","NoDocbcCost","Income","DiffWalk","HighChol","Stroke",
+           "Veggies","GenHlth","Sex","CholCheck","HeartDiseaseorAttack","HvyAlcoholConsump",
+           "Age","Education")
+ 
+ initial_train[cols] <- lapply(initial_train[cols],factor)
+ 
+ initial_train$BMI <- as.numeric(initial_train$BMI)
+ initial_train$MentHlth <- as.numeric(initial_train$MentHlth)
+ initial_train$PhysHlth <- as.numeric(initial_train$PhysHlth)
+# 
+# 
+# # ALTERNATIVE FOR LATER LIGHTGBM if I can't use logbinom
+# 
+# 
+# test <- train(Diabetes_binary ~ ., data =  initial_train,
+#                        method = "glm",
+#                        family = "binomial",
+#                       
+#                        preProcess = c("center", "scale"), 
+#                        trControl = trainControl(method = "cv", number = 5,classProbs = TRUE, summaryFunction =mnLogLoss),
+#                       metric = "binary_logLoss",
+#                  trace = FALSE
+#                  )
+# 
+# summary(test)
+# 
+# 
+# 
+
 
 summary(logbinmodel)
 ```
