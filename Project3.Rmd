@@ -506,7 +506,7 @@ plot(rfFit, log="y", main = "Random Forest Plot")
 By now, we are aware that logistic regression is useful for classifying a binary variable. However, logistic regression can often be seen as a single layer to a larger method of classification - which the neural network method. At it's core, neural network are central functions that can work on multiple inputs and can deal with linear and nonlinear datasets. Further the neural networks operate in a way in which they train their meausrements and functions to make precise decisions on how to classify a single or group of variables. THus, logistic regression can be seen as a form of a neural network that works on classifying one binary variable into a success or failure ( 0/1) category. The below model utilizes cross validation and the log loss metric as standards for the neural network operation to predict whether or not a participant has diabetes. 
 
 
-```{r logbin, warning=FALSE}
+```{r neuro, warning=FALSE}
 
 
 cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","HighBP",
@@ -530,5 +530,5 @@ Neural_Model <- train(Diabetes_binary ~ .,
                      trace  = FALSE
 )
 
-Neural_Model$results
+Neural_Model$results 
 ```
