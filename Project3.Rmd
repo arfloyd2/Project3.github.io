@@ -9,7 +9,6 @@ params:
 knitr::opts_chunk$set(echo = TRUE, fig.path=paste0('Figs/', params$Education_Level, '/'), warning = FALSE, message = FALSE)
 ```
 
-**Render Code:**
 ```{r render, eval = FALSE, echo = FALSE}
 initial_dta <- read_csv('diabetes_binary_health_indicators_BRFSS2015.csv') %>% 
           mutate(Education_1 = ifelse(Education %in% c(1,2),1,Education)) %>%
@@ -151,7 +150,7 @@ initial_dta <- read_csv('diabetes_binary_health_indicators_BRFSS2015.csv') %>%
                                     ifelse(Education_1==5, "Some college or technical school",
                                     ifelse(Education_1==6, "College graduate", "ERROR")))))) %>% dplyr::select(-Education, -Education_1)
 
-filtered_dta <-  initial_dta %>% filter(Education_Level == "Elementary or less")  %>% dplyr::select(-Education_Level)
+filtered_dta <-  initial_dta %>% filter(Education_Level == params$Education_Level)  %>% dplyr::select(-Education_Level)
 
 #set seed for reproducibility 
 
@@ -580,8 +579,8 @@ set.seed(110)
 
 random_forest_model <- train(Diabetes_binary~., data = trainTransformed, method="rf",
                              trControl = ctrl,
-                tuneGrid = expand.grid(mtry=1:15),
-                                       ntree=200)
+                tuneGrid = data.frame(mtry=2:3),
+                            ntree=100)
 
 print(random_forest_model)
 
