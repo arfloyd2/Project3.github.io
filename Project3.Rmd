@@ -9,6 +9,7 @@ params:
 knitr::opts_chunk$set(echo = TRUE, fig.path=paste0('Figs/', params$Education_Level, '/'), warning = FALSE, message = FALSE)
 ```
 
+**Render Code:**
 ```{r render, eval = FALSE, echo = FALSE}
 initial_dta <- read_csv('diabetes_binary_health_indicators_BRFSS2015.csv') %>% 
           mutate(Education_1 = ifelse(Education %in% c(1,2),1,Education)) %>%
