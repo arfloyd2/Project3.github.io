@@ -2796,13 +2796,14 @@ print(XGBoost_Model)</code></pre>
 ##   6          0.8               0.5508690
 ## 
 ## Tuning parameter &#39;nrounds&#39; was held constant at a value of 100
-##  parameter &#39;min_child_weight&#39; was held constant at a value of 1
-## 
+## Tuning parameter
+##  constant at a value of 0.1
+## Tuning parameter &#39;min_child_weight&#39; was held constant at
+##  a value of 1
 ## Tuning parameter &#39;subsample&#39; was held constant at a value of 1
 ## logLoss was used to select the optimal model using the smallest value.
-## The final values used for the model were nrounds = 100, max_depth = 3, eta
-##  = 0.1, gamma = 0.1, colsample_bytree = 0.6, min_child_weight = 1
-##  and subsample = 1.</code></pre>
+## The final values used for the model were nrounds = 100, max_depth = 3, eta =
+##  0.1, gamma = 0.1, colsample_bytree = 0.6, min_child_weight = 1 and subsample = 1.</code></pre>
 <pre class="r"><code>predict_XGBoost_Model &lt;- predict(XGBoost_Model, newdata = testTransformed,
                                      type=&quot;prob&quot;)
 test_XGBoost_Model &lt;- data.frame(No = c(predict_XGBoost_Model$No,
@@ -2828,7 +2829,13 @@ metric of the test dataset.</p>
                      Logloss_Neural_Model, Logloss_XGBoost_Model)) %&gt;%
   arrange(LogLoss)
 
-Best_Model &lt;- All_models[1,1]</code></pre>
+All_models</code></pre>
+<div data-pagedtable="false">
+<script data-pagedtable-source type="application/json">
+{"columns":[{"label":["Model"],"name":[1],"type":["chr"],"align":["left"]},{"label":["LogLoss"],"name":[2],"type":["dbl"],"align":["right"]}],"data":[{"1":"Class Tree","2":"0.7884921"},{"1":"LASSO Model","2":"0.9203645"},{"1":"XGBoost Model","2":"0.9231549"},{"1":"Neural Model","2":"0.9276054"},{"1":"Linear Model","2":"0.9472234"},{"1":"Random Forest Model","2":"0.9834116"},{"1":"Polynomial Model","2":"1.2933809"},{"1":"Interaction Model","2":"1.3460978"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+<pre class="r"><code>Best_Model &lt;- All_models[1,1]</code></pre>
 <p>The highest performing overall model was the Class Tree.</p>
 </div>
 
