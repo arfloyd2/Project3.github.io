@@ -1670,7 +1670,7 @@ Regression</a></li>
 <li><a href="#classification-tree-model" id="toc-classification-tree-model">Classification Tree Model</a></li>
 <li><a href="#random-forest-trees" id="toc-random-forest-trees">Random
 Forest Trees</a></li>
-<li><a href="#new-model-neural-networks" id="toc-new-model-neural-networks">New Model : Neural Networks</a></li>
+<li><a href="#new-model-neural-networks" id="toc-new-model-neural-networks">New Model: Neural Networks</a></li>
 <li><a href="#extreme-gradient-boosting-xgboost-model" id="toc-extreme-gradient-boosting-xgboost-model">Extreme Gradient
 Boosting (XGBoost) Model</a></li>
 </ul></li>
@@ -2605,9 +2605,6 @@ provide better predictions overall when compared to regular
 classification trees. Below will use the training data to fit a random
 forest tree. After, a prediction will be created followed by a plot of
 the results.</p>
-<p>Because this is for classification purposes of prediction whether or
-not someone has diabites, the sqrt(p) will be used for the predictor m
-value.</p>
 <pre class="r"><code>set.seed(110)
 
 random_forest_model &lt;- train(Diabetes_binary~., data = trainTransformed, method=&quot;rf&quot;,
@@ -2658,7 +2655,7 @@ Logloss_random_forest &lt;- mnLogLoss(data = test_random_forest,
                             lev = levels(test_random_forest$obs))</code></pre>
 </div>
 <div id="new-model-neural-networks" class="section level2">
-<h2>New Model : Neural Networks</h2>
+<h2>New Model: Neural Networks</h2>
 <p>By now, we are aware that logistic regression is useful for
 classifying a binary variable. However, logistic regression can often be
 seen as a single layer to a larger method of classification - which the
@@ -2668,7 +2665,7 @@ nonlinear datasets. Further the neural networks operate in a way in
 which they train their measurements and functions to make precise
 decisions on how to classify a single or group of variables. Thus,
 logistic regression can be seen as a form of a neural network that works
-on classifying one binary variable into a success or failure ( 0/1)
+on classifying one binary variable into a success or failure (0/1)
 category. The below model utilizes cross validation and the log loss
 metric as standards for the neural network operation to predict whether
 or not a participant has diabetes.</p>

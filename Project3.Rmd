@@ -575,8 +575,6 @@ Logloss_Class_Tree <- mnLogLoss(data = test_Class_Tree,
 
 Random forests trees are apart of the ensemble learning method for creating classification models. They are produced by creating multiple classification - or decision - trees through sampling methods such as bootstrapping or bagging. After creating the samples, a random group of classification trees is then selected  and predictions are done on each selection. Finally, the output of the random forest trees is the average of the predictions. By combining and averaging over multiple classification tees, random forests are often seen as generally more accurate (even though they are known to lose some interpretability that regular classification trees possess), less prone to overfitting, and provide better predictions overall when compared to regular classification trees. Below will use the training data to fit a random forest tree. After, a prediction will be created followed by a plot of the results.
 
-Because this is for classification purposes of prediction whether or not someone has diabites, the sqrt(p) will be used for the predictor m value. 
-
 ```{r rndmfrst, warning= FALSE}
 set.seed(110)
 
@@ -600,10 +598,9 @@ Logloss_random_forest <- mnLogLoss(data = test_random_forest,
 ```
 
 
-## New Model : Neural Networks 
+## New Model: Neural Networks 
 
-By now, we are aware that logistic regression is useful for classifying a binary variable. However, logistic regression can often be seen as a single layer to a larger method of classification - which the neural network method. At it's core, neural network are central functions that can work on multiple inputs and can deal with linear and nonlinear datasets. Further the neural networks operate in a way in which they train their measurements and functions to make precise decisions on how to classify a single or group of variables. Thus, logistic regression can be seen as a form of a neural network that works on classifying one binary variable into a success or failure ( 0/1) category. The below model utilizes cross validation and the log loss metric as standards for the neural network operation to predict whether or not a participant has diabetes. 
-
+By now, we are aware that logistic regression is useful for classifying a binary variable. However, logistic regression can often be seen as a single layer to a larger method of classification - which the neural network method. At it's core, neural network are central functions that can work on multiple inputs and can deal with linear and nonlinear datasets. Further the neural networks operate in a way in which they train their measurements and functions to make precise decisions on how to classify a single or group of variables. Thus, logistic regression can be seen as a form of a neural network that works on classifying one binary variable into a success or failure (0/1) category. The below model utilizes cross validation and the log loss metric as standards for the neural network operation to predict whether or not a participant has diabetes. 
 
 ```{r neuro, warning=FALSE}
 
