@@ -46,10 +46,10 @@ apply(reports, MARGIN = 1,
 
 Finally, below are the links to the html files rendered by github pages 
 
-[Elementary or less]()  
-[Some high school]()  
-[High school graduate]()  
-[Some college or technical school]()  
-[College graduate]()  
+[Elementary or less](https://arfloyd2.github.io/Project3.github.io/Project%203%2C%20Elementary%20or%20less.html)  
+[Some high school](https://arfloyd2.github.io/Project3.github.io/Project%203%2C%20Some%20high%20school.html)  
+[High school graduate](https://arfloyd2.github.io/Project3.github.io/Project%203%2C%20High%20school%20graduate.html)  
+[Some college or technical school](https://arfloyd2.github.io/Project3.github.io/Project%203%2C%20Some%20college%20or%20technical%20school.html)  
+[College graduate](https://arfloyd2.github.io/Project3.github.io/Project%203%2C%20College%20graduate.html)  
 
 
