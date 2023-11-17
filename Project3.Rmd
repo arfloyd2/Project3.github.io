@@ -6,7 +6,7 @@ params:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, fig.path=paste0('Figs/', params$Education_Level, '/'), warning = FALSE, error = FALSE)
+knitr::opts_chunk$set(echo = TRUE, fig.path=paste0('Figs/', params$Education_Level, '/'), warning = FALSE, message = FALSE)
 ```
 
 ```{r render, eval = FALSE, echo = FALSE}
@@ -38,7 +38,11 @@ apply(reports, MARGIN = 1,
 
 # Introduction 
 
-The purpose of this document is to create multiple reports that will summarizing and create various models for a CDC dataset that contains information on diabetes. Each report will cover a different education level based on a variable in the dataset, and the creation of these reports will be automated so that the same graphs and models will be generated for each education level.  
+The purpose of this document is to create multiple reports that will summarizing and create various models for a CDC dataset that contains information on diabetes. Each report will cover a different education level based on a variable in the dataset, and the creation of these reports will be automated so that the same graphs and models will be generated for each education level. An EDA will be conducted to investigate some interesting variables from the dataset.
+
+The end goal of this report is to ultimately chose the best performing model for each education level. This will be done programmatically and will be based on Log-Loss, a metric that is explained within this report. 
+
+## Dataset Overview and Variables
 
 The information being analyzed is from the Behavioral Risk Factor Surveillance System (BRFSS), a health-related telephone survey that is collected annually by the Centers for Disease Control and Prevention (CDC). This survey has collected responses from over 400,000 Americans each year on various health-related questions since 1984.  
 
@@ -113,6 +117,8 @@ The particular dataset being used for this report contains data from the BRFSS c
     - PhysHlth: Physical illness or injury days in past 30 days
         - Scale: 1-30 days
     
+## R Packages Used
+
 Below are all the packages used throughout this document:
 ```{r libraries}
 
@@ -131,7 +137,7 @@ library(corrplot)
 
 # Reading in the Data 
 
-Below reads in the binary heart disease data, converts the appropriate variables into factor level variables, and splits the data into training and test set data. 
+Below reads in the binary heart disease data, converts the appropriate variables into factor level variables, splits the data into a training and test set, and pre-processes the data by centering and scaling.
 
 ```{r readin, message = FALSE}
 
@@ -144,36 +150,38 @@ initial_dta <- read_csv('diabetes_binary_health_indicators_BRFSS2015.csv') %>%
                                     ifelse(Education_1==5, "Some college or technical school",
                                     ifelse(Education_1==6, "College graduate", "ERROR")))))) %>% dplyr::select(-Education, -Education_1)
 
+filtered_dta <-  initial_dta %>% filter(Education_Level == "Elementary or less")  %>% dplyr::select(-Education_Level)
+
 #set seed for reproducibility 
 
 set.seed(90)
 
 #Convert all the categorical and binary variables to factors
 
-cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","Education_Level","HighBP",
+cols <- c("Diabetes_binary","PhysActivity","AnyHealthcare","HighBP",
           "Smoker","Fruits","NoDocbcCost","Income","DiffWalk","HighChol","Stroke",
           "Veggies","GenHlth","Sex","CholCheck","HeartDiseaseorAttack","HvyAlcoholConsump",
           "Age")
 
-initial_dta[cols] <- lapply(initial_dta[cols],factor)
+filtered_dta[cols] <- lapply(filtered_dta[cols],as.factor)
 
 #Ensure that all numerical variables are numeric
 
-initial_dta$BMI <- as.numeric(initial_dta$BMI)
-initial_dta$MentHlth <- as.numeric(initial_dta$MentHlth)
-initial_dta$PhysHlth <- as.numeric(initial_dta$PhysHlth)
+filtered_dta$BMI <- as.numeric(filtered_dta$BMI)
+filtered_dta$MentHlth <- as.numeric(filtered_dta$MentHlth)
+filtered_dta$PhysHlth <- as.numeric(filtered_dta$PhysHlth)
 
 #Name the levels of the Diabetes_binary variable
-levels(initial_dta$Diabetes_binary)=c("No","Yes")
+levels(filtered_dta$Diabetes_binary)=c("No","Yes")
 
 #create a training index that uses 70% of the data for training data
 
-trainindex <- createDataPartition(initial_dta$Diabetes_binary,p = 0.70, list= FALSE)
+trainindex <- createDataPartition(filtered_dta$Diabetes_binary,p = 0.70, list= FALSE)
 
 #Now, split the data into 70% training and 30% testing
 
-initial_train <- initial_dta[trainindex, ]
-initial_test <- initial_dta[-trainindex, ]
+initial_train <- filtered_dta[trainindex, ]
+initial_test <- filtered_dta[-trainindex, ]
 
 #To help make our predictions valid, we are now going to standardize the numeric variables
 
@@ -194,8 +202,13 @@ Because this Diabetes response variable is in binary form, contingency tables an
 Looking at the correlation between numerical predictor variables can help in determining which variables to include in a regression model. Including predictor variables that are highly correlated with one another, known as multicollinearity, can increase the complexity of the model unnecessarily by including variables that are redundant. It can also lead to more uncertainty and variability in the model because it may be unclear which predictor variable is responsible for the effect on the target variable. To address multicollinearity, solutions like techniques like principal component analysis (PCA) can be use to mitigate the impact highly correlated predictor variables on the resulting model.
 
 The below code creates a correlation matrix of the three numerical variables from the dataset, as well as some the categorical variables age and income, since there categories are ordinal and have enough granularity in the grouping to look at a correlation:
-```{r}
-Correlation <- cor(dplyr::select(initial_dta, BMI, MentHlth, PhysHlth, Age, Income), method="spearman")
+```{r, Correlation Matrix}
+cor_data <- filtered_dta
+
+cor_data$Age <- as.numeric(cor_data$Age)
+cor_data$Income <- as.numeric(cor_data$Income)
+
+Correlation <- cor(dplyr::select(cor_data, BMI, MentHlth, PhysHlth, Age, Income), method="spearman")
 
 corrplot(Correlation)
 ```
@@ -205,39 +218,39 @@ In analyzing the different variables and their correlations, their isn't a stric
 
 The below tables shows the frequency of respondents by sex among those who have diabetes and among those who do not have diabetes. This gives a general overview of the data that may be helpful to add context to the boxplots to follow.
 ```{r}
-as.data.frame(table(initial_dta$Diabetes_binary, initial_dta$Sex)) %>% rename(Diabetes_binary="Var1", Sex = "Var2", Sex_Freq = "Freq")
+as.data.frame(table(filtered_dta$Diabetes_binary, filtered_dta$Sex)) %>% rename(Diabetes_binary="Var1", Sex = "Var2", Sex_Freq = "Freq")
 ```
 
 
 The below boxplots look at the numerical variables from the dataset with regard to distribution and center among those with and without diabetes. These boxplots are also broken out by sex to investigate the impact of this variable on the resulting distribution and center of BMI, mental health, and physical health. There are also summary statistics of mean, standard deviation, 1st quartile, median, and 3rd quartile to accompany each boxplot.
 ```{r}
-ggplot(initial_dta, aes(x=as.factor(Diabetes_binary), y=BMI,
+ggplot(filtered_dta, aes(x=as.factor(Diabetes_binary), y=BMI,
                         fill=as.factor(Sex))) +
   geom_boxplot() +
   labs(x = "Diabetes", y = "Body Mass Index (BMI)", title = "BMI of Those With and Without Diabetes by Sex")+
   scale_fill_discrete(name="Sex")
 
-initial_dta %>% group_by(Diabetes_binary, Sex) %>% summarize(BMI_mean = mean(BMI), BMI_sd = sd(BMI), BMI_Q1 = quantile(BMI, probs =0.25), BMI_Median = quantile(BMI, probs =0.5), BMI_Q3 = quantile(BMI, probs =0.75))
+filtered_dta %>% group_by(Diabetes_binary, Sex) %>% summarize(BMI_mean = mean(BMI), BMI_sd = sd(BMI), BMI_Q1 = quantile(BMI, probs =0.25), BMI_Median = quantile(BMI, probs =0.5), BMI_Q3 = quantile(BMI, probs =0.75))
 ```
 
 ```{r}
-ggplot(initial_dta, aes(x=as.factor(Diabetes_binary), y=MentHlth,
+ggplot(filtered_dta, aes(x=as.factor(Diabetes_binary), y=MentHlth,
                         fill=as.factor(Sex))) +
   geom_boxplot() +
   labs(x = "Diabetes", y = "Days of Poor Mental Health in Past 30", title = "Mental Health of Those With and Without Diabetes by Sex")+
   scale_fill_discrete(name="Sex")
 
-initial_dta %>% group_by(Diabetes_binary, Sex) %>% summarize(MentHlth_mean = mean(MentHlth), MentHlth_sd = sd(MentHlth), MentHlth_Q1 = quantile(MentHlth, probs =0.25), MentHlth_Median = quantile(MentHlth, probs =0.5), MentHlth_Q3 = quantile(MentHlth, probs =0.75))
+filtered_dta %>% group_by(Diabetes_binary, Sex) %>% summarize(MentHlth_mean = mean(MentHlth), MentHlth_sd = sd(MentHlth), MentHlth_Q1 = quantile(MentHlth, probs =0.25), MentHlth_Median = quantile(MentHlth, probs =0.5), MentHlth_Q3 = quantile(MentHlth, probs =0.75))
 ```
 
 ```{r}
-ggplot(initial_dta, aes(x=as.factor(Diabetes_binary), y=PhysHlth,
+ggplot(filtered_dta, aes(x=as.factor(Diabetes_binary), y=PhysHlth,
                         fill=as.factor(Sex))) +
   geom_boxplot() +
   labs(x = "Diabetes", y = "Days of Illness/Injury in Past 30", title = "Physical Health of Those With and Without Diabetes by Sex")+
   scale_fill_discrete(name="Sex")
 
-initial_dta %>% group_by(Diabetes_binary, Sex) %>% summarize(PhysHlth_mean = mean(PhysHlth), PhysHlth_sd = sd(PhysHlth), PhysHlth_Q1 = quantile(PhysHlth, probs =0.25), PhysHlth_Median = quantile(PhysHlth, probs =0.5), PhysHlth_Q3 = quantile(PhysHlth, probs =0.75))
+filtered_dta %>% group_by(Diabetes_binary, Sex) %>% summarize(PhysHlth_mean = mean(PhysHlth), PhysHlth_sd = sd(PhysHlth), PhysHlth_Q1 = quantile(PhysHlth, probs =0.25), PhysHlth_Median = quantile(PhysHlth, probs =0.5), PhysHlth_Q3 = quantile(PhysHlth, probs =0.75))
 ```
 
 When analyzing these boxplots, one should look for differences in center among those with and without diabetes, as well as those among females (indicated with a 0) compared to males (indicated with a 1). One should also look for any differences in distribution among these groups. Overall, these boxplots indicate that these box plots are generally skewed right with a many outliers in the higher range of values, but distributions by education level may vary. 
@@ -255,14 +268,14 @@ The following frequency table will show the number of patients with and without 
 ```{r healthconcerns}
 
 
-BP <- data.frame(table(initial_dta$Diabetes_binary,initial_dta$HighBP)) %>% rename(Diabetes_binary="Var1", High_BP = "Var2", BP_Freq = "Freq")
+BP <- data.frame(table(filtered_dta$Diabetes_binary,filtered_dta$HighBP)) %>% rename(Diabetes_binary="Var1", High_BP = "Var2", BP_Freq = "Freq")
 
-CHOL <- data.frame(table(initial_dta$Diabetes_binary, initial_dta$HighChol)) %>% rename(Diabetes_binary="Var1", High_Chol = "Var2", HI_CHOL_Freq = "Freq" )
+CHOL <- data.frame(table(filtered_dta$Diabetes_binary, filtered_dta$HighChol)) %>% rename(Diabetes_binary="Var1", High_Chol = "Var2", HI_CHOL_Freq = "Freq" )
 
-STRKE <- as.data.frame(table(initial_dta$Diabetes_binary, initial_dta$Stroke)) %>% rename(Diabetes_binary="Var1", Stroke = "Var2", sTROKE_Freq = "Freq" )
+STRKE <- as.data.frame(table(filtered_dta$Diabetes_binary, filtered_dta$Stroke)) %>% rename(Diabetes_binary="Var1", Stroke = "Var2", sTROKE_Freq = "Freq" )
 
 
-HATCK <- as.data.frame(table(initial_dta$Diabetes_binary, initial_dta$HeartDiseaseorAttack)) %>% rename(Diabetes_binary="Var1", Heart_Disease_Attack = "Var2", Heart_Disease_Attack_Freq = "Freq" )
+HATCK <- as.data.frame(table(filtered_dta$Diabetes_binary, filtered_dta$HeartDiseaseorAttack)) %>% rename(Diabetes_binary="Var1", Heart_Disease_Attack = "Var2", Heart_Disease_Attack_Freq = "Freq" )
 
 Diabetes_disease_frequency <- list("BP" = BP,"CHOL" = CHOL,"STRKE" = STRKE,"HATCK" = HATCK)
 
@@ -277,14 +290,14 @@ In this section, we will explore the distributions and central measures for BMI 
 
 
 ```{r diab_bmi}
-initial_dta %>% summarise(Max_BMI = max(BMI), Mediam_BMI = median(BMI), Mean_BMI = mean(BMI), .by = Diabetes_binary)
+filtered_dta %>% summarise(Max_BMI = max(BMI), Mediam_BMI = median(BMI), Mean_BMI = mean(BMI), .by = Diabetes_binary)
 
 ```
 
 Next, we'll look at the distribution of the BMI values ocross patients with diabetes. One thing to thnink of, is for the different educational groups- which could have a correlation with the different age groups- how is BMI distributed within this education group? Are we seeing the distribution being concentrated in the center, or are we seeing a skewness towards the higher BMI levels for these patients? Thus, can BMI be a significant predictor of diabetes ? 
 
 ```{r graphage}
-diab_bmi <- initial_dta %>% filter(Diabetes_binary == 1)
+diab_bmi <- filtered_dta %>% filter(Diabetes_binary == "Yes")
 
 ggplot(diab_bmi) +
   geom_density(mapping=aes(x=BMI ), fill = "blue" ,position="identity") + 
@@ -301,11 +314,11 @@ Another area of interest was the interaction of age with the binary diabetes var
 
 ```{r healthlist}
 
-PHYS <- data.frame(table(initial_dta$Age,initial_dta$PhysActivity)) %>% rename(Age_Group="Var1", Physical_Acitivty = "Var2", Phys_Freq = "Freq")
+PHYS <- data.frame(table(filtered_dta$Age,filtered_dta$PhysActivity)) %>% rename(Age_Group="Var1", Physical_Acitivty = "Var2", Phys_Freq = "Freq")
 
-FRUIT <- data.frame(table(initial_dta$Age,initial_dta$Fruits)) %>% rename(Age_Group="Var1", Consumes_Fruit = "Var2", Fruit_Consumption_Freq = "Freq")
+FRUIT <- data.frame(table(filtered_dta$Age,filtered_dta$Fruits)) %>% rename(Age_Group="Var1", Consumes_Fruit = "Var2", Fruit_Consumption_Freq = "Freq")
 
-VEG <- data.frame(table(initial_dta$Age,initial_dta$Veggies)) %>% rename(Age_Group="Var1", Consumes_Veggies = "Var2", Veggie_Consumption_Freq = "Freq")
+VEG <- data.frame(table(filtered_dta$Age,filtered_dta$Veggies)) %>% rename(Age_Group="Var1", Consumes_Veggies = "Var2", Veggie_Consumption_Freq = "Freq")
 
 
 Healthy_Habits_frequency <- list("PHYS" = PHYS,"FRUIT" = FRUIT,"VEGGIES" = VEG)
@@ -321,7 +334,7 @@ Below observed the frequencies for whether or not a person has done physical act
 
 ```{r physage, message = FALSE}
 
-initial_age_group_diab <- initial_dta %>% filter(Diabetes_binary ==1)
+initial_age_group_diab <- filtered_dta %>% filter(Diabetes_binary == "Yes")
 
 phys_sum <- initial_age_group_diab %>% group_by(PhysActivity,Age) %>% summarize(sum_Diabetes= n())
 phys_sum$AgeGroup <- as.factor(phys_sum$Age)
@@ -358,7 +371,7 @@ g
 So far we've looked at the intersections of healthy habits, age and diabetes. Finally, it would be interesting to see if mental health, age and diabetes have any intersections. The main point of interest in this portion is to see if there is any possible correlation between age and how many days during the past 30 days the subject says their mental health was not good (which is the MentHlth variable). To visualize this, below looks at a scatter plot of age and MentHlth broken out by whether or not the subject had diabetes. Is there a higher prevalence of having experiences poor mental health in the past 30 days for any particular age groups? Is there a stronger correlation for those who have diabetes compared to those who did not? These and other questions that could possibly shed light in the modelling process could be further investigated using the below set of graphs. 
 
 ```{r mentalage}
-ment_age <- initial_dta %>% group_by(Diabetes_binary, Age) %>% summarize(mental_health_sum = sum(as.numeric(MentHlth)))
+ment_age <- filtered_dta %>% group_by(Diabetes_binary, Age) %>% summarize(mental_health_sum = sum(as.numeric(MentHlth)))
 
 age_mental_scatter <- ggplot(ment_age, aes(x=Age,y=mental_health_sum)) +
   geom_point(position= "jitter") + 
@@ -398,73 +411,91 @@ The below code creates a common cross-validation parameter that will be used thr
 ctrl <- trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction=mnLogLoss)
 ```
 
+The below code creates a linear logistic model using all terms with no interaction or polynomial terms.
+```{r Linear_Model, warning = FALSE}
 
-```{r logloss, warning = FALSE}
-
-logloss <- train(Diabetes_binary ~ ., data =  initial_train,
+Linear_Model <- train(Diabetes_binary ~ ., data =  trainTransformed,
                        method = "glm",
-                       family = "binomial",
-                       preProcess = c("center", "scale"), 
+                       family = "binomial", 
                        trControl = ctrl,
                       metric = "logLoss",
                  trace = FALSE
                  )
 
-summary(logloss)
+print(Linear_Model)
 
-mnLogLoss(initial_test, lev = c("No", "Yes"))
+predict_Linear_Model <- predict(Linear_Model, newdata = testTransformed,
+                                type="prob")
+test_Linear_Model <- data.frame(No = c(predict_Linear_Model$No,
+                                           predict_Linear_Model$Yes),
+                                    obs = testTransformed$Diabetes_binary)
+test_Linear_Model$Yes <- 1-test_Linear_Model$No
+test_Linear_Model$pred <- factor(ifelse(test_Linear_Model$No >= 0.5,
+                                             "No", "Yes"))
+Logloss_Linear <- mnLogLoss(data = test_Linear_Model,
+                            lev = levels(test_Linear_Model$obs))
 ```
 
-This next model will observe the interaction between Sex and Age
+This next model will include all variables as well as an interaction between Sex and Age.
+```{r Interaction Model, warning = FALSE}
 
-
-```{r logloss2, warning = FALSE}
-
-logloss2 <- train(Diabetes_binary ~ . + Sex:Age, data =  initial_train,
+Inter_Model <- train(Diabetes_binary ~ . + Sex:Age, data =  testTransformed,
                        method = "glm",
                        family = "binomial",
-                       preProcess = c("center", "scale"), 
                        trControl = ctrl,
                       metric = "logLoss",
                  trace = FALSE
                  )
-summary(logloss2)
+
+print(Inter_Model)
+
+predict_Inter_Model <- predict(Inter_Model, newdata = testTransformed,
+                                     type="prob")
+test_Inter_Model <- data.frame(No = c(predict_Inter_Model$No,
+                                           predict_Inter_Model$Yes),
+                                    obs = testTransformed$Diabetes_binary)
+test_Inter_Model$Yes <- 1-test_Inter_Model$No
+test_Inter_Model$pred <- factor(ifelse(test_Inter_Model$No >= 0.5,
+                                             "No", "Yes"))
+Logloss_Inter <- mnLogLoss(data = test_Inter_Model,
+                            lev = levels(test_Inter_Model$obs))
 ```
 
-The third model will use tsame interactions, but will use the squared term for mental health. 
+The third model will use the same interactions, but will also include the squared term for mental health.
+```{r Polynomial, warning = FALSE}
 
-```{r logloss3, warning = FALSE}
-
-logloss3 <- train(Diabetes_binary ~ . + Sex:Age + I(MentHlth^2), data =  initial_train,
+Poly_Model <- train(Diabetes_binary ~ . + Sex:Age + I(MentHlth^2), data =  initial_train,
                        method = "glm",
                        family = "binomial",
-                       preProcess = c("center", "scale"), 
                        trControl = ctrl,
                       metric = "logLoss",
                  trace = FALSE
                  )
-summary(logloss3)
+
+print(Poly_Model)
+
+predict_Poly_Model <- predict(Poly_Model, newdata = testTransformed,
+                                     type="prob")
+test_Poly_Model <- data.frame(No = c(predict_Poly_Model$No,
+                                           predict_Poly_Model$Yes),
+                                    obs = testTransformed$Diabetes_binary)
+test_Poly_Model$Yes <- 1-test_Poly_Model$No
+test_Poly_Model$pred <- factor(ifelse(test_Poly_Model$No >= 0.5,
+                                             "No", "Yes"))
+Logloss_Poly <- mnLogLoss(data = test_Poly_Model,
+                            lev = levels(test_Poly_Model$obs))
 ```
 
 
-We Will now pull the deviance and the AIC for all three logloss models to compare which model we should choose
-
+We will now compare the three log-loss metrics from the test set to see which performs the best.
 ```{r loglosscomp}
-model_method <- c("logLoss1_full_Model","logLoss2_SEX:Age","LogLoss3_Sex:Age_MentalHealth^2")
-deviance <- c(logloss$finalModel$deviance,logloss2$finalModel$deviance,logloss3$finalModel$deviance)
-aic<- c(logloss$finalModel$aic,logloss2$finalModel$aic,logloss3$finalModel$aic)
+Log_models <- data.frame(Model=c("Linear Model", "Interaction Model", "Polynomial Model"),
+           LogLoss=c(Logloss_Linear, Logloss_Inter, Logloss_Poly)) %>%
+  arrange(LogLoss)
 
-data.frame(model_method,deviance,aic)
-
+Best_Log_Model <- Log_models[1,1]
 ```
-From the output, for the aggregate of the whole data, the deviance was lower for the interaction between Sex and Age plus the Squared term for Mental Health. Thus, the final model used will be The third model.
-
-```{r predict}
-logloss3$finalModel
-```
-
-
-
+The highest performing Log model is the `r Best_Log_Model`.
 
 
 ## LASSO Logistic Regression
@@ -480,12 +511,11 @@ Where:
 
 The regularization term, $\lambda \sum_{j=1}^{m} |\theta_j|$, is added to the standard log-loss function, which penalizes the absolute values of the model parameters, encouraging the model to shrink some coefficients towards zero during the training process. This additional regularization helps prevent overfitting and can lead to a sparser model, where only the most relevant features are considered, which helps with simplicity and interpretability compared to the basic logistic model.
 
-The below code fits a LASSO logistic regression model using the log-loss criteria:
+The below code fits a LASSO logistic regression model using the log-loss criteria.
 ```{r LASSO Model}
-ctrl <- trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction=mnLogLoss)
 
 LASSO_Model <- train(Diabetes_binary ~ .,
-                     data = logdta,
+                     data = trainTransformed,
                      method = "glmnet",
                      trControl = ctrl,
                      metric = "logLoss",
@@ -493,6 +523,18 @@ LASSO_Model <- train(Diabetes_binary ~ .,
                      tuneGrid = expand.grid(alpha = 1, lambda = 10^seq(-4, 0, by = 0.5))
 )
 
+print(LASSO_Model)
+
+predict_LASSO_Model <- predict(LASSO_Model, newdata = testTransformed,
+                                     type="prob")
+test_LASSO_Model <- data.frame(No = c(predict_LASSO_Model$No,
+                                           predict_LASSO_Model$Yes),
+                                    obs = testTransformed$Diabetes_binary)
+test_LASSO_Model$Yes <- 1-test_LASSO_Model$No
+test_LASSO_Model$pred <- factor(ifelse(test_LASSO_Model$No >= 0.5,
+                                             "No", "Yes"))
+Logloss_LASSO <- mnLogLoss(data = test_LASSO_Model,
+                            lev = levels(test_LASSO_Model$obs))
 ```
 
 ## Classification Tree Model
@@ -503,9 +545,9 @@ Some reasons to use classification trees are that they are easy to understand an
 
 The below code fits a Classification Tree model using the log-loss criteria:
 ```{r}
-logdta$Diabetes_binary <- as.factor(logdta$Diabetes_binary)
+
 Class_Tree <- train(Diabetes_binary ~ .,
-                     data = initial_train,
+                     data = trainTransformed,
                      method = "rpart",
                      trControl = ctrl,
                      metric = "logLoss",
@@ -513,36 +555,47 @@ Class_Tree <- train(Diabetes_binary ~ .,
                      tuneGrid = data.frame(cp = seq(0, 0.5, by = 0.05))
                       )
 
-```
+print(Class_Tree)
 
+predict_Class_Tree <- predict(Class_Tree, newdata = testTransformed,
+                                     type="prob")
+test_Class_Tree <- data.frame(No = c(predict_Class_Tree$No,
+                                           predict_Class_Tree$Yes),
+                                    obs = testTransformed$Diabetes_binary)
+test_Class_Tree$Yes <- 1-test_Class_Tree$No
+test_Class_Tree$pred <- factor(ifelse(test_Class_Tree$No >= 0.5,
+                                             "No", "Yes"))
+Logloss_Class_Tree <- mnLogLoss(data = test_Class_Tree,
+                            lev = levels(test_Class_Tree$obs))
+
+```
 
 ## Random Forest Trees 
 
-Random forests trees are apart of the ensemble learning method for creating classification models. They are produced by creating multiple classification - or decision - trees through sampling methods such as bootstrapping or bagging. After creating the samples, a random group of classification trees is then selected  and predictions are done on each selection. Finally, the output of the random forest trees is the average of the predictions. By combining and averaging over multiple classification tees, random forests are often seen as generally more accurate ( even though they are known to lose some Interpretability that regular classification trees posess ), less prone to overfitting, and provide better predicitons overall when compared to regular classification trees. Below will use the training data to fit a random forest tree. After, a prediction will be created followed by a plot of the results.
+Random forests trees are apart of the ensemble learning method for creating classification models. They are produced by creating multiple classification - or decision - trees through sampling methods such as bootstrapping or bagging. After creating the samples, a random group of classification trees is then selected  and predictions are done on each selection. Finally, the output of the random forest trees is the average of the predictions. By combining and averaging over multiple classification tees, random forests are often seen as generally more accurate (even though they are known to lose some interpretability that regular classification trees possess), less prone to overfitting, and provide better predictions overall when compared to regular classification trees. Below will use the training data to fit a random forest tree. After, a prediction will be created followed by a plot of the results.
 
 Because this is for classification purposes of prediction whether or not someone has diabites, the sqrt(p) will be used for the predictor m value. 
 
 ```{r rndmfrst, warning= FALSE}
 set.seed(110)
 
-levels(initial_train$Diabetes_binary)=c(1,0)
+random_forest_model <- train(Diabetes_binary~., data = trainTransformed, method="rf",
+                             trControl = ctrl,
+                tuneGrid = expand.grid(mtry=1:15),
+                                       ntree=200)
 
-# Convert the explanatory variables to numeric 
-rrdta <- initial_train %>% dplyr::select(!Education_Level) %>% filter(Education_1 == 3) %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
+print(random_forest_model)
 
-rrtest <- initial_test %>% dplyr::select(!Education_Level) %>% filter(Education_1 == 3) %>% mutate(across(where(is.factor), as.character)) %>% mutate(across(where(is.character), as.numeric))
-
-# Now fit the model 
-rfFit <- randomForest(Diabetes_binary~., data = rrdta, mtry = round(sqrt(ncol(rrdta)),0), ntree = 200, importance = TRUE)
-
-rfFit$importance
-
-
-#Plotting the Results 
-
-
-plot(rfFit, log="y", main = "Random Forest Plot")
-
+predict_random_forest <- predict(random_forest_model, newdata = testTransformed,
+                                     type="prob")
+test_random_forest <- data.frame(No = c(predict_random_forest$No,
+                                           predict_random_forest$Yes),
+                                    obs = testTransformed$Diabetes_binary)
+test_random_forest$Yes <- 1-test_random_forest$No
+test_random_forest$pred <- factor(ifelse(test_random_forest$No >= 0.5,
+                                             "No", "Yes"))
+Logloss_random_forest <- mnLogLoss(data = test_random_forest,
+                            lev = levels(test_random_forest$obs))
 ```
 
 
@@ -553,12 +606,12 @@ By now, we are aware that logistic regression is useful for classifying a binary
 
 ```{r neuro, warning=FALSE}
 
-logdta_train <- initial_train %>% dplyr::select(!c(Education_Level,MentHlth,PhysHlth,BMI))
+logdta_train <- trainTransformed %>% dplyr::select(!c(MentHlth,PhysHlth,BMI))
 
-logdta_test <- initial_train %>% dplyr::select(!c(Education_Level,MentHlth,PhysHlth,BMI))
+logdta_test <- testTransformed %>% dplyr::select(!c(MentHlth,PhysHlth,BMI))
 
 Neural_Model <- train(Diabetes_binary ~ .,
-                     data = logdta,
+                     data = logdta_train,
                      method = "nnet",
                      trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, summaryFunction=mnLogLoss),
                      metric = "logLoss",
@@ -566,7 +619,18 @@ Neural_Model <- train(Diabetes_binary ~ .,
                      trace  = FALSE
 )
 
-Neural_Model$results 
+print(Neural_Model)
+
+predict_Neural_Model <- predict(Neural_Model, newdata = testTransformed,
+                                     type="prob")
+test_Neural_Model <- data.frame(No = c(predict_Neural_Model$No,
+                                           predict_Neural_Model$Yes),
+                                    obs = testTransformed$Diabetes_binary)
+test_Neural_Model$Yes <- 1-test_Neural_Model$No
+test_Neural_Model$pred <- factor(ifelse(test_Neural_Model$No >= 0.5,
+                                             "No", "Yes"))
+Logloss_Neural_Model <- mnLogLoss(data = test_Neural_Model,
+                            lev = levels(test_Neural_Model$obs))
 ```
 
 ## Extreme Gradient Boosting (XGBoost) Model
@@ -595,17 +659,43 @@ XGBoost_tune <- expand.grid(nrounds = c(100),
                             )
 
 XGBoost_Model <- train(Diabetes_binary ~ .,
-                       data = logdta,
+                       data = trainTransformed,
                        method = "xgbTree",
                        trControl = ctrl,
                        metric = "logLoss",
                        tuneGrid = XGBoost_tune,
                        preProcess= c("center", "scale"),
-                       weights = rep(1, nrow(logdta))
+                       weights = rep(1, nrow(trainTransformed))
                        )
 
-XGBoost_Model
+print(XGBoost_Model)
+
+predict_XGBoost_Model <- predict(XGBoost_Model, newdata = testTransformed,
+                                     type="prob")
+test_XGBoost_Model <- data.frame(No = c(predict_XGBoost_Model$No,
+                                           predict_XGBoost_Model$Yes),
+                                    obs = testTransformed$Diabetes_binary)
+test_XGBoost_Model$Yes <- 1-test_XGBoost_Model$No
+test_XGBoost_Model$pred <- factor(ifelse(test_XGBoost_Model$No >= 0.5,
+                                             "No", "Yes"))
+Logloss_XGBoost_Model <- mnLogLoss(data = test_XGBoost_Model,
+                            lev = levels(test_XGBoost_Model$obs))
 ```
+
+# Best Overall Model
+
+The below code selects the best overall model based on the log-loss metric of the test dataset.
 ```{r}
+All_models <- data.frame(Model=c("Linear Model", "Interaction Model",
+                                 "Polynomial Model", "LASSO Model", "Class Tree",
+                                 "Random Forest Model", "Neural Model",
+                                 "XGBoost Model"),
+           LogLoss=c(Logloss_Linear, Logloss_Inter, Logloss_Poly, Logloss_LASSO,
+                     Logloss_Class_Tree, Logloss_random_forest,
+                     Logloss_Neural_Model, Logloss_XGBoost_Model)) %>%
+  arrange(LogLoss)
+
+Best_Model <- All_models[1,1]
 ```
+The highest performing overall model was the `r Best_Model`.
 
